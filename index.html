@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="index,follow">
+<meta name="theme-color" content="#B7EAEA">
+<title>Rupeyantra AI – Free Finance Assistant for EMI, SIP & Budget</title>
+<meta name="description" content="Rupeyantra AI se EMI, SIP, loan, budget aur bachat ke sawal Hinglish mein poochhein. Financial concepts samjhein aur calculations mein madad paayein.">
+<!-- IMPORTANT: Deploy karne se pehle canonical aur schema URLs ko apne EXACT live domain se match karein. -->
+<link rel="canonical" href="https://rupyantra.vercel.app/ai">
+<meta property="og:title" content="Rupeyantra AI – Free Finance Assistant">
+<meta property="og:description" content="EMI, SIP, loan aur budget ke sawal Hinglish mein poochhein.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rupyantra.vercel.app/ai">
+<meta name="twitter:card" content="summary">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script type="application/ld+json">
+{
+  "@context":"https://schema.org",
+  "@type":"WebApplication",
+  "name":"Rupeyantra AI",
+  "url":"https://rupyantra.vercel.app/ai",
+  "applicationCategory":"FinanceApplication",
+  "operatingSystem":"Web",
+  "inLanguage":"en-IN",
+  "description":"AI assistant for understanding EMI, SIP, loans, budgeting and savings in Hinglish.",
+  "offers":{"@type":"Offer","price":"0","priceCurrency":"INR"}
+}
+</script>
+<style>
+:root{color-scheme:light dark;--text:#1b1b2f;--muted:#6f6c85;--line:#e3ddf3;--card:#fff;--bot:#fff;--g1:#0E9AA7;--g2:#3B5BDB;--g3:#7C3AED;--sky:linear-gradient(180deg,#B7EAEA 0%,#D9CCFF 16%,#F5F0FF 34%,#fff 58%);--bg:#fff}
+@media(prefers-color-scheme:dark){:root{--text:#EEEAFB;--muted:#A19DBB;--line:#34304F;--card:#1B1930;--bot:#1B1930;--sky:linear-gradient(180deg,#14434C 0%,#2A2158 20%,#17142B 45%,#100F1E 70%);--bg:#100F1E;color-scheme:dark}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--text);font-family:"Outfit",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,textarea{font:inherit}
+button{touch-action:manipulation}
+#app{height:100%;min-height:0;display:flex;flex-direction:column;background:var(--sky);padding-top:env(safe-area-inset-top,0px)}
+.top{display:flex;justify-content:flex-end;align-items:center;padding:6px 12px;gap:4px}
+.ib{width:40px;height:40px;border:0;background:none;color:var(--text);display:grid;place-items:center;border-radius:14px;cursor:pointer}
+.ib:hover{background:rgba(120,100,200,.12)}
+.ib svg,.circle svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+:focus-visible{outline:3px solid var(--g3);outline-offset:2px}
+#body{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;width:100%;max-width:680px;margin:0 auto;padding:0 16px}
+h1{font-size:clamp(22px,6vw,30px);line-height:1.2;font-weight:600;text-align:center;margin:0 0 20px;letter-spacing:-.01em;background:linear-gradient(100deg,var(--g1),var(--g2) 55%,var(--g3));-webkit-background-clip:text;background-clip:text;color:transparent}
+.intro{font-size:14px;line-height:1.5;color:var(--muted);text-align:center;margin:-10px 0 18px}
+#msgs{display:none;flex:1;min-height:0;overflow:auto;padding:8px 2px 14px;flex-direction:column;gap:12px;overscroll-behavior:contain}
+.msg{max-width:90%;padding:10px 14px;border-radius:18px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.5}
+.msg.bot{background:var(--bot);border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:6px}
+.msg.user{background:linear-gradient(100deg,var(--g2),var(--g3));color:#fff;align-self:flex-end;border-bottom-right-radius:6px}
+.msg.user img{display:block;max-width:100%;max-height:200px;border-radius:12px;margin:2px 0 6px}
+.msg.user .fl{font-size:13px;opacity:.95;margin-bottom:4px;overflow-wrap:anywhere}
+.msg.err{border-color:#e5484d;font-size:13px}
+.msg .tools{display:flex;gap:4px;margin-top:7px;flex-wrap:wrap}
+.tools button{border:0;background:none;color:var(--muted);font:500 12.5px "Outfit",system-ui,sans-serif;cursor:pointer;padding:4px 8px;border-radius:8px}
+.tools button:hover{background:rgba(124,58,237,.1);color:var(--text)}
+.msg .retry{color:#d04444}
+.vf{font-size:12px;color:var(--g1);margin-top:6px}
+.opts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.opts button{border:1px solid var(--line);background:var(--card);color:var(--text);font:500 13px "Outfit",system-ui,sans-serif;padding:6px 12px;border-radius:999px;cursor:pointer}
+.opts button:hover{background:rgba(124,58,237,.1)}
+.card{position:relative;background:var(--card);border:1.5px solid var(--line);border-radius:22px;padding:12px 12px 8px 16px;min-height:112px;display:flex;flex-direction:column;box-shadow:0 8px 30px -14px rgba(90,70,200,.25)}
+textarea:focus,textarea:focus-visible{outline:none;box-shadow:none}
+/* 16px: iPhone par focus karte hi page zoom na ho */
+textarea{flex:1;border:0;outline:0;resize:none;background:transparent;color:var(--text);font:400 16px/1.5 "Outfit",system-ui,sans-serif;min-height:48px;max-height:200px;padding:0}
+textarea::placeholder{color:var(--muted)}
+.row{display:flex;justify-content:flex-end;align-items:center;gap:4px;padding-top:6px}
+.circle{width:38px;height:38px;border-radius:50%;border:0;display:grid;place-items:center;cursor:pointer;flex:none}
+.circle svg{width:20px;height:20px}
+#mic{background:none;color:var(--text)}
+#mic.on{background:rgba(124,58,237,.15);color:var(--g3)}
+#send,#stop{background:linear-gradient(100deg,var(--g2),var(--g3));color:#fff}
+#send{display:none}
+#stop{display:none;background:#b4232d}
+#send:disabled,#stop:disabled{opacity:.5}
+#plusWrap{position:relative;margin-right:auto}
+#plus{background:none;color:var(--text)}
+#plus:hover,#plus.on{background:rgba(124,58,237,.12)}
+.has-text #send{display:grid}.has-text #mic{display:none}
+.busy #stop{display:grid}.busy #send{display:none}.busy #mic{display:none}
+.menu{display:none;position:absolute;left:0;bottom:calc(100% + 8px);min-width:150px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:6px;box-shadow:0 10px 30px -10px rgba(60,40,140,.35);z-index:10}
+.menu.open{display:block}
+.menu button{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;color:var(--text);font:500 15px "Outfit",system-ui,sans-serif;padding:10px 12px;border-radius:10px;cursor:pointer;text-align:left}
+.menu button:hover{background:rgba(124,58,237,.1)}
+.menu svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+input[type=file]{display:none}
+.chips{display:flex;flex-wrap:wrap;gap:8px;padding:0 0 8px}
+.chips:empty{display:none}
+.chip{display:flex;align-items:center;gap:6px;max-width:100%;background:rgba(124,58,237,.1);border:1px solid var(--line);border-radius:12px;padding:4px 6px 4px 4px;font-size:13px}
+.chip img{width:36px;height:36px;object-fit:cover;border-radius:8px;display:block}
+.chip .ic{width:36px;height:36px;display:grid;place-items:center;font-size:18px}
+.chip .nm{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip button{border:0;background:none;color:var(--muted);font-size:18px;line-height:1;width:24px;height:24px;border-radius:50%;cursor:pointer}
+.note{font-size:13px;color:#e5484d;padding:0 6px 8px;display:none}
+.note.show{display:block}
+.chatting #body{justify-content:flex-start}
+.chatting h1,.chatting .intro{display:none}
+.chatting #msgs{display:flex}
+.chatting .card{min-height:0;margin-bottom:calc(10px + env(safe-area-inset-bottom,0px));flex-direction:row;flex-wrap:wrap;align-items:flex-end;padding:6px;gap:4px}
+.chatting .chips{order:-1;flex-basis:100%;padding:4px 6px}
+.chatting .row{display:contents}
+.chatting #plusWrap{order:0;margin-right:0}
+.chatting textarea{order:1;flex:1;min-width:0;min-height:24px;padding:8px 0}
+.chatting #mic{order:2}
+.chatting #send,.chatting #stop{order:3}
+.sugg{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 0 18px}
+.sugg button{border:1px solid var(--line);background:var(--card);color:var(--text);font:500 13.5px "Outfit",system-ui,sans-serif;padding:8px 14px;border-radius:999px;cursor:pointer;text-align:left;line-height:1.3}
+.sugg button:hover{background:rgba(124,58,237,.1)}
+.chatting .sugg{display:none}
+.thinking{background:none!important;border:0!important;padding:4px 0!important;display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+.thinking .dot{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--g1),var(--g3));color:#fff;display:grid;place-items:center;font-size:14px;font-weight:700;animation:pulse 1.4s ease-in-out infinite}
+.thinking .t{background:linear-gradient(100deg,var(--g3),var(--g1),var(--g2),var(--g3));background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 2.2s linear infinite}
+.legal{max-width:640px;margin:0 auto;padding:0 16px 8px;text-align:center;color:var(--muted);font-size:11px;line-height:1.4}
+@keyframes shine{to{background-position:-300% 0}}@keyframes pulse{50%{transform:scale(.85);opacity:.7}}
+@media(max-width:420px){.top{padding:4px 8px}#body{padding:0 10px}.msg{max-width:94%;font-size:14.5px}.card{padding-left:12px}.sugg button{font-size:12.5px;padding:8px 11px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}.thinking .dot,.thinking .t{animation:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="top">
+    <button class="ib" id="newChat" aria-label="Naya chat" title="Naya chat">
+      <svg viewBox="0 0 24 24"><path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/><path d="M18.4 3.6a1.9 1.9 0 0 1 2.7 2.7L12 15.4l-3.8 1 1-3.8z"/></svg>
+    </button>
+  </div>
+  <main id="body">
+    <h1>Rupeyantra AI: Aapka Finance Saathi</h1>
+    <p class="intro">EMI, SIP, loan, budget aur bachat ke sawal aasaan Hinglish mein poochhein.</p>
+    <div class="sugg" id="sugg"></div>
+    <div id="msgs" aria-live="polite" aria-relevant="additions text"></div>
+    <div id="dock">
+      <div id="note" class="note" role="status" aria-live="polite"></div>
+      <form class="card" id="form">
+        <div class="chips" id="chips"></div>
+        <textarea id="inp" rows="1" maxlength="4000" placeholder="Aapka agla sawal kya hai?" aria-label="Apna sawal" autocomplete="off"></textarea>
+        <div class="row">
+          <div id="plusWrap">
+            <button type="button" class="circle" id="plus" aria-label="Photo ya file jodo" aria-haspopup="true" aria-expanded="false">
+              <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <div class="menu" id="menu" role="menu">
+              <button type="button" id="pickPhoto" role="menuitem"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 9"/></svg>Photo</button>
+              <button type="button" id="pickFile" role="menuitem"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>File</button>
+            </div>
+          </div>
+          <button type="button" class="circle" id="mic" aria-label="Bolkar poochho" title="Bolkar poochho"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></svg></button>
+          <button type="button" class="circle" id="stop" aria-label="Response roko" title="Response roko"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+          <button type="submit" class="circle" id="send" aria-label="Bhejo" title="Bhejo"><svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+        </div>
+      </form>
+      <input type="file" id="imgIn" accept="image/*" multiple>
+      <input type="file" id="fileIn" accept=".pdf,.txt,.csv,.tsv,.json,.md,.log,application/pdf,text/plain" multiple>
+    </div>
+  </main>
+  <footer class="legal">Rupeyantra AI general information deta hai, personal financial advice nahi. Investment decisions se pehle apni research karein aur zaroorat par SEBI-registered adviser se salah lein.</footer>
+</div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const app=$('app'),msgs=$('msgs'),inp=$('inp'),stopBtn=$('stop'),form=$('form'),mic=$('mic'),sugg=$('sugg');
+const plus=$('plus'),menu=$('menu'),imgIn=$('imgIn'),fileIn=$('fileIn'),chips=$('chips'),note=$('note');
+const DEBUG=/[?&]debug=1/.test(location.search); // /ai?debug=1 par provider ke asli errors dikhte hain
+const API='/api/chat';
+// convo = API ko jaane wale messages; log = screen par dikhne wale messages
+let convo=[],pending=[],log=[],gen=0,controller=null,activeBot=null,busy=false,noteTimer=null,rec=null,stopped=false;
+// Limits backend (api/chat.js) se match karti hain: content 12000, base64 total 3.5M, Vercel body 4.5 MB
+const MAX_FILES=3,MAX_B64=2700000,MAX_TOTAL_B64=3300000,MAX_PDF=2000000,MAX_CONTENT=12000,TEXT_PER_FILE=8000,MAX_TEXT_FILE=500000,REQUEST_TIMEOUT=55000;
+const KEY='rupeyantra_chat_v2',DB_NAME='rupeyantra_ai_files',DB_STORE='sessions';
+const TEXT_EXT=/\.(txt|csv|tsv|json|md|log)$/i;
+const SUGG=['EMI kaise nikalte hain?','50 lakh ka home loan 8.5% par 20 saal ke liye EMI kitni hogi?','Mahine ki 5000 ki SIP 12% par 10 saal mein kitni banegi?','Mahine ka budget kaise banaye?'];
+
+function refresh(){form.classList.toggle('has-text',inp.value.trim().length>0||pending.length>0)}
+function grow(){inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,200)+'px';refresh()}
+function setBusy(b){busy=b;form.classList.toggle('busy',b)}
+function warn(t){note.textContent=t;note.classList.add('show');clearTimeout(noteTimer);noteTimer=setTimeout(()=>note.classList.remove('show'),6000)}
+inp.addEventListener('input',grow);
+inp.addEventListener('keydown',e=>{const touch=window.matchMedia&&matchMedia('(pointer:coarse)').matches;if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&!touch){e.preventDefault();form.requestSubmit()}});
+inp.addEventListener('paste',e=>{const f=Array.from((e.clipboardData&&e.clipboardData.files)||[]).filter(x=>x.type.startsWith('image/'));if(f.length){e.preventDefault();addFiles(f)}});
+
+/* menu */
+function closeMenu(){menu.classList.remove('open');plus.classList.remove('on');plus.setAttribute('aria-expanded','false')}
+plus.onclick=e=>{e.stopPropagation();const o=menu.classList.toggle('open');plus.classList.toggle('on',o);plus.setAttribute('aria-expanded',String(o))};
+document.addEventListener('click',e=>{if(!menu.contains(e.target)&&!plus.contains(e.target))closeMenu()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeMenu()});
+$('pickPhoto').onclick=()=>{closeMenu();imgIn.click()};
+$('pickFile').onclick=()=>{closeMenu();fileIn.click()};
+imgIn.onchange=()=>{const f=Array.from(imgIn.files);imgIn.value='';addFiles(f)};
+fileIn.onchange=()=>{const f=Array.from(fileIn.files);fileIn.value='';addFiles(f)};
+
+/* storage: chat IndexedDB mein, fallback localStorage */
+function openDB(){return new Promise((resolve,reject)=>{if(!('indexedDB'in window)){reject(new Error('IndexedDB unavailable'));return}const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(DB_STORE))r.result.createObjectStore(DB_STORE)};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+async function dbPut(value){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(value,KEY);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}})}
+async function dbGet(){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(DB_STORE,'readonly'),r=tx.objectStore(DB_STORE).get(KEY);r.onsuccess=()=>{db.close();resolve(r.result||null)};r.onerror=()=>{db.close();reject(r.error)}})}
+async function dbDelete(){try{const db=await openDB();await new Promise((resolve,reject)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).delete(KEY);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(_){}}
+let saveQueue=Promise.resolve();
+function save(){
+  // Photo/PDF ka base64 kabhi save nahi hota; sirf text aur chhota thumbnail.
+  const snap={log:log.slice(-60),history:convo.slice(-40).map(m=>({role:m.role,content:m.content})),savedAt:Date.now()};
+  saveQueue=saveQueue.then(()=>dbPut(snap)).catch(()=>{
+    try{localStorage.setItem(KEY,JSON.stringify({log:snap.log.slice(-30).map(l=>({role:l.role,text:l.text,atts:(l.atts||[]).map(a=>({name:a.name,thumb:null}))})),history:snap.history.slice(-20)}))}catch(_){}
+  });
+}
+async function wipe(){try{await saveQueue}catch(_){}try{localStorage.removeItem(KEY);localStorage.removeItem('rupeyantra_chat_v1')}catch(_){}await dbDelete()}
+
+/* messages UI */
+function add(role,text){const d=document.createElement('div');d.className='msg '+role;d.textContent=text;msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d}
+function addUser(text,atts){
+  const d=document.createElement('div');d.className='msg user';
+  (atts||[]).forEach(a=>{if(a.thumb){const im=document.createElement('img');im.src=a.thumb;im.alt=a.name||'Uploaded photo';d.appendChild(im)}else{const s=document.createElement('div');s.className='fl';s.textContent='📎 '+(a.name||'File');d.appendChild(s)}});
+  if(text){const t=document.createElement('div');t.textContent=text;d.appendChild(t)}
+  msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d;
+}
+function thinkingBot(){
+  const d=document.createElement('div');d.className='msg bot thinking';
+  const dot=document.createElement('span');dot.className='dot';dot.textContent='₹';
+  const t=document.createElement('span');t.className='t';t.textContent='Soch raha hoon…';
+  d.appendChild(dot);d.appendChild(t);msgs.appendChild(d);msgs.scrollTop=msgs.scrollHeight;return d;
+}
+function showError(bot,text,retryFn){
+  bot.classList.remove('thinking');bot.classList.add('err');bot.textContent=text;
+  const tools=document.createElement('div');tools.className='tools';
+  const retry=document.createElement('button');retry.type='button';retry.className='retry';retry.textContent='Dobara try karein';retry.onclick=retryFn;tools.appendChild(retry);
+  bot.appendChild(tools);msgs.scrollTop=msgs.scrollHeight;
+}
+async function copyText(t,btn){
+  let ok=false;try{await navigator.clipboard.writeText(t);ok=true}catch(e){const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{ok=document.execCommand('copy')}catch(_){}ta.remove()}
+  btn.textContent=ok?'Copy ho gaya ✓':'Copy nahi hua';setTimeout(()=>{if(btn.isConnected)btn.textContent='Copy'},1800);
+}
+// extra (optional): { verified: bool, options: [text, ...] } backend ke reply se aata hai
+function botMsg(bot,text,animate,extra){
+  bot.classList.remove('thinking','err');bot.innerHTML='';
+  const span=document.createElement('span');bot.appendChild(span);
+  const tools=document.createElement('div');tools.className='tools';
+  const cb=document.createElement('button');cb.type='button';cb.textContent='Copy';cb.onclick=()=>copyText(text,cb);tools.appendChild(cb);
+  if(navigator.share){const sb=document.createElement('button');sb.type='button';sb.textContent='Share';sb.onclick=()=>navigator.share({text:text+'\n\n- Rupeyantra AI'}).catch(()=>{});tools.appendChild(sb)}
+  const finish=()=>{
+    if(!bot.isConnected)return;
+    span.textContent=text;
+    if(extra&&extra.verified){const v=document.createElement('div');v.className='vf';v.textContent='✓ Calculator se verified';bot.appendChild(v)}
+    bot.appendChild(tools);
+    if(extra&&Array.isArray(extra.options)&&extra.options.length){
+      const o=document.createElement('div');o.className='opts';
+      extra.options.slice(0,6).forEach(t=>{
+        if(typeof t!=='string'||!t)return;
+        const b=document.createElement('button');b.type='button';b.textContent=t;
+        b.onclick=()=>{if(busy)return;o.remove();inp.value=t;grow();form.requestSubmit()};
+        o.appendChild(b);
+      });
+      if(o.children.length)bot.appendChild(o);
+    }
+    msgs.scrollTop=msgs.scrollHeight;
+  };
+  const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches;
+  if(!animate||reduce||text.length<40){finish();return}
+  const my=gen;let i=0;const step=Math.max(3,Math.ceil(text.length/90));
+  const timer=setInterval(()=>{
+    // naya message ya naya chat aaya to animation rok kar poora text dikha do (adhura text na rahe)
+    if(my!==gen||!bot.isConnected){clearInterval(timer);finish();return}
+    i+=step;
+    if(i>=text.length){clearInterval(timer);finish();return}
+    span.textContent=text.slice(0,i);msgs.scrollTop=msgs.scrollHeight;
+  },18);
+}
+
+/* attachments */
+function readDataURL(f){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=()=>no(new Error('File padh nahi payi'));r.readAsDataURL(f)})}
+function readText(f){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=()=>no(new Error('File padh nahi payi'));r.readAsText(f)})}
+function loadImage(url){return new Promise((ok,no)=>{const im=new Image();im.onload=()=>ok(im);im.onerror=()=>no(new Error('Is photo ka format support nahi hai'));im.src=url})}
+function drawScaled(im,max,q){
+  const s=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight));
+  const w=Math.max(1,Math.round(im.naturalWidth*s)),h=Math.max(1,Math.round(im.naturalHeight*s));
+  const c=document.createElement('canvas');c.width=w;c.height=h;
+  const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,w,h);x.drawImage(im,0,0,w,h);
+  return c.toDataURL('image/jpeg',q);
+}
+const b64Of=u=>u.split(',')[1]||'';
+const pendingB64=()=>pending.reduce((n,p)=>n+(p.data?p.data.length:0),0);
+
+// Photo ko chhota karke JPEG banata hai taaki upload size limit mein rahe.
+async function prepareImage(f){
+  const url=await readDataURL(f);
+  const im=await loadImage(url);
+  const room=Math.min(MAX_B64,MAX_TOTAL_B64-pendingB64());
+  for(const [max,q] of [[1600,.82],[1280,.78],[1024,.72],[800,.65]]){
+    const data=b64Of(drawScaled(im,max,q));
+    if(data.length&&data.length<=room){
+      return {kind:'image',name:f.name||'photo.jpg',mime:'image/jpeg',data,thumb:drawScaled(im,120,.7)};
+    }
+  }
+  throw new Error('Photo bahut badi hai; chhoti photo bhejo');
+}
+async function preparePdf(f){
+  if(f.size>MAX_PDF)throw new Error('PDF 2 MB se chhoti honi chahiye');
+  const data=b64Of(await readDataURL(f));
+  if(!data||data.length>MAX_TOTAL_B64-pendingB64())throw new Error('Files ka total size bahut zyada hai');
+  return {kind:'pdf',name:f.name||'file.pdf',mime:'application/pdf',data,thumb:null};
+}
+async function prepareText(f){
+  if(f.size>MAX_TEXT_FILE)throw new Error('Text file bahut badi hai');
+  const text=(await readText(f)).replace(/\u0000/g,'').trim();
+  if(!text)throw new Error('File khali hai');
+  return {kind:'text',name:f.name||'file.txt',text:text.slice(0,TEXT_PER_FILE),thumb:null};
+}
+async function addFiles(files){
+  for(const f of files){
+    if(pending.length>=MAX_FILES){warn('Ek baar mein sirf '+MAX_FILES+' files jod sakte hain.');break}
+    try{
+      let item;
+      if(f.type.startsWith('image/'))item=await prepareImage(f);
+      else if(f.type==='application/pdf'||/\.pdf$/i.test(f.name))item=await preparePdf(f);
+      else if(f.type.startsWith('text/')||f.type==='application/json'||TEXT_EXT.test(f.name))item=await prepareText(f);
+      else throw new Error('Ye file type support nahi hai (photo, PDF ya text file bhejo)');
+      pending.push(item);
+    }catch(e){warn((f.name?f.name+': ':'')+(e.message||'File jod nahi payi'))}
+  }
+  renderChips();
+}
+function renderChips(){
+  chips.innerHTML='';
+  pending.forEach((p,idx)=>{
+    const c=document.createElement('div');c.className='chip';
+    if(p.thumb){const im=document.createElement('img');im.src=p.thumb;im.alt='';c.appendChild(im)}
+    else{const ic=document.createElement('span');ic.className='ic';ic.textContent='📄';c.appendChild(ic)}
+    const nm=document.createElement('span');nm.className='nm';nm.textContent=p.name;c.appendChild(nm);
+    const x=document.createElement('button');x.type='button';x.textContent='×';x.setAttribute('aria-label',p.name+' hatao');
+    x.onclick=()=>{pending.splice(idx,1);renderChips()};
+    c.appendChild(x);chips.appendChild(c);
+  });
+  refresh();
+}
+
+// Text files ka content message ke saath [FILE: naam] ... [FILE END] block mein jaata hai (backend inhe calculation se alag rakhta hai).
+function buildContent(text){
+  const blocks=pending.filter(p=>p.kind==='text').map(p=>'[FILE: '+p.name.replace(/[\]\n\r]/g,' ').slice(0,100)+']\n'+p.text+'\n[FILE END]');
+  if(!blocks.length)return text;
+  const head=text||'Is file ko dekho aur batao isme kya hai.';
+  return (head+'\n\n'+blocks.join('\n\n')).slice(0,MAX_CONTENT);
+}
+
+/* send */
+async function send(){
+  const my=++gen;
+  stopped=false;
+  controller=new AbortController();
+  const bot=thinkingBot();activeBot=bot;setBusy(true);
+  let timedOut=false,serverData={};
+  const timer=setTimeout(()=>{timedOut=true;controller.abort()},REQUEST_TIMEOUT);
+  try{
+    const last=convo.length-1;
+    const payload=convo.map((m,i)=>{const o={role:m.role,content:m.content};if(i===last&&m.attachments)o.attachments=m.attachments;return o});
+    const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:payload}),signal:controller.signal});
+    try{serverData=await r.json()}catch(_){}
+    if(my!==gen)return;
+    const reply=serverData&&typeof serverData.reply==='string'?serverData.reply.trim():'';
+    if(!r.ok||!reply){
+      const e=new Error((serverData&&serverData.message)||'Abhi jawab nahi mil paya. Dobara try karein.');
+      e.fromServer=true;throw e;
+    }
+    setBusy(false);
+    convo.push({role:'assistant',content:reply});
+    log.push({role:'bot',text:reply});
+    save();
+    botMsg(bot,reply,true,{verified:serverData.verified===true,options:serverData.options});
+  }catch(e){
+    if(stopped||my!==gen)return;
+    let msg=e&&e.fromServer?e.message:timedOut?'Jawab dene mein der lag gayi. Dobara try karein.':'Internet check karke dobara try karein.';
+    if(DEBUG){msg+='\n['+(e&&e.message||'')+']'+(serverData&&serverData.debug?'\n'+JSON.stringify(serverData.debug):'')}
+    setBusy(false);
+    showError(bot,msg,()=>{if(busy)return;bot.remove();send()});
+  }finally{
+    clearTimeout(timer);
+    if(my===gen&&busy)setBusy(false);
+  }
+}
+
+form.addEventListener('submit',e=>{
+  e.preventDefault();
+  if(busy)return;
+  const text=inp.value.trim();
+  if(!text&&!pending.length)return;
+  const content=buildContent(text);
+  const atts=pending.filter(p=>p.kind!=='text');
+  const msg={role:'user',content};
+  if(atts.length)msg.attachments=atts.map(a=>({mime:a.mime,data:a.data}));
+  convo.push(msg);
+  const shown=pending.map(p=>({name:p.name,thumb:p.thumb||null}));
+  log.push({role:'user',text,atts:shown});
+  app.classList.add('chatting');
+  addUser(text,shown);
+  pending=[];renderChips();
+  inp.value='';grow();
+  if(rec){try{rec.stop()}catch(_){}}
+  save();
+  send();
+});
+
+stopBtn.onclick=()=>{
+  if(!busy)return;
+  stopped=true;gen++;
+  if(controller)controller.abort();
+  if(activeBot&&activeBot.isConnected)activeBot.remove();
+  setBusy(false);
+};
+
+/* naya chat */
+$('newChat').onclick=async()=>{
+  stopped=true;gen++;
+  if(controller)controller.abort();
+  if(rec){try{rec.stop()}catch(_){}}
+  convo=[];log=[];pending=[];activeBot=null;
+  msgs.innerHTML='';
+  app.classList.remove('chatting');
+  setBusy(false);renderChips();inp.value='';grow();
+  await wipe();
+  inp.focus();
+};
+
+/* suggestions */
+SUGG.forEach(t=>{
+  const b=document.createElement('button');b.type='button';b.textContent=t;
+  b.onclick=()=>{inp.value=t;grow();form.requestSubmit()};
+  sugg.appendChild(b);
+});
+
+/* bolkar poochho (voice) */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(!SR){mic.style.display='none'}
+else{
+  mic.onclick=()=>{
+    if(rec){try{rec.stop()}catch(_){}return}
+    const r=new SR();
+    r.lang='hi-IN';r.interimResults=false;r.continuous=false;
+    r.onresult=ev=>{
+      const t=Array.from(ev.results).map(x=>x[0].transcript).join(' ').trim();
+      if(t){inp.value=(inp.value?inp.value+' ':'')+t;grow()}
+    };
+    r.onerror=ev=>{if(ev.error==='not-allowed'||ev.error==='service-not-allowed')warn('Mic use karne ki permission do.');else if(ev.error!=='no-speech'&&ev.error!=='aborted')warn('Awaaz samajh nahi aayi, dobara try karein.')};
+    r.onend=()=>{rec=null;mic.classList.remove('on')};
+    rec=r;mic.classList.add('on');
+    try{r.start()}catch(_){rec=null;mic.classList.remove('on')}
+  };
+}
+
+/* pichhla chat wapas laao */
+async function restore(){
+  let snap=null;
+  try{snap=await dbGet()}catch(_){}
+  if(!snap){try{snap=JSON.parse(localStorage.getItem(KEY)||'null')}catch(_){}}
+  if(!snap||!Array.isArray(snap.log)||!snap.log.length)return;
+  log=snap.log.filter(l=>l&&(l.role==='user'||l.role==='bot')&&typeof l.text==='string');
+  convo=Array.isArray(snap.history)?snap.history.filter(m=>m&&(m.role==='user'||m.role==='assistant')&&typeof m.content==='string'):[];
+  if(!log.length)return;
+  app.classList.add('chatting');
+  log.forEach(l=>{if(l.role==='user')addUser(l.text,Array.isArray(l.atts)?l.atts:[]);else botMsg(add('bot',''),l.text,false)});
+}
+restore().catch(()=>{});
+grow();
+</script>
+</body>
+</html>
