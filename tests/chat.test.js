@@ -453,3 +453,30 @@ test('handler: verified RBI jawab pass hota hai, banaya hua rate fallback hota h
   assert.ok(!/7\.25/.test(res.body.reply));
   assert.match(res.body.reply, /5\.5%/);
 });
+
+/* ---------- knowledge base (tayyar jawab) ---------- */
+
+test('handler: "EMI kya hai?" ka tayyar jawab milta hai, API call nahi hoti, key na ho tab bhi', async t => {
+  t.after(reset);
+  clearKeys();
+  let called = false;
+  global.fetch = async () => { called = true; return okRes({}); };
+  const res = mockRes();
+  await handler(req([{ role: 'user', content: 'EMI kya hai?' }]), res);
+  assert.equal(res.code, 200);
+  assert.equal(res.body.source, 'knowledge');
+  assert.equal(res.body.topic, 'emi');
+  assert.match(res.body.reply, /Equated Monthly Installment/);
+  assert.deepEqual(res.body.options, ['Mere numbers se EMI nikalo']);
+  assert.equal(called, false);
+});
+
+test('handler: knowledge base wale sawal ke baad "Mere numbers se EMI nikalo" EMI ke inputs poochta hai', async t => {
+  t.after(reset);
+  clearKeys();
+  const res = mockRes();
+  await handler(req([{ role: 'user', content: 'Mere numbers se EMI nikalo' }]), res);
+  assert.equal(res.code, 200);
+  assert.equal(res.body.source, 'router');
+  assert.match(res.body.reply, /loan|amount/i);
+});
