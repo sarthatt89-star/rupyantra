@@ -10,6 +10,7 @@
  *  - lib/error-handler.js     : retry, timeout, circuit breaker, friendly errors, request id, safe logging
  *  - lib/key-pool.js          : har provider ki kai API keys; ek ki limit khatam to agli key chalti hai
  *  - lib/system-prompt.js     : AI ke saare prompts / niyam
+ *  - lib/knowledge-base.js    : aam concept sawalon ke tayyar jawab (AI/API ke bina)
  *
  * Request flow:
  *   1. wrapHandler (request id + koi bhi throw => sanitized JSON), rate limit, body/attachment checks
@@ -32,6 +33,7 @@ const eh = require('../lib/error-handler');
 const router = require('../lib/intent-router');
 const validator = require('../lib/finance-validator');
 const keyPool = require('../lib/key-pool');
+const knowledge = require('../lib/knowledge-base');
 
 /* ---------- prompts ---------- */
 
@@ -1036,6 +1038,17 @@ async function handler(req, res, meta) {
       const options = route.clarification && route.clarification.options;
       if (Array.isArray(options) && options.length) payload.options = options;
       return res.status(200).json(payload);
+    }
+  }
+
+  // 2b) Aam concept sawal ("EMI kya hai?"): tayyar jawab, AI/API ka quota nahi lagta (keys na hon tab bhi chalta hai)
+  if (!hasMedia) {
+    const kb = knowledge.lookup(route, last.content);
+    if (kb) {
+      return res.status(200).json({
+        reply: kb.reply, checked: false, verified: false, source: 'knowledge', topic: kb.topic,
+        options: kb.options, requestId
+      });
     }
   }
 
