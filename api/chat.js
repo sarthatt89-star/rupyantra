@@ -11,6 +11,7 @@
  *  - lib/key-pool.js          : har provider ki kai API keys; ek ki limit khatam to agli key chalti hai
  *  - lib/system-prompt.js     : AI ke saare prompts / niyam
  *  - lib/knowledge-base.js    : aam concept sawalon ke tayyar jawab (AI/API ke bina)
+ *  - lib/alert.js             : zaroori dikkat par Gmail alert (throttle ke saath)
  *
  * Request flow:
  *   1. wrapHandler (request id + koi bhi throw => sanitized JSON), rate limit, body/attachment checks
@@ -34,6 +35,8 @@ const router = require('../lib/intent-router');
 const validator = require('../lib/finance-validator');
 const keyPool = require('../lib/key-pool');
 const knowledge = require('../lib/knowledge-base');
+const alerts = require('../lib/alert');
+const crypto = require('node:crypto');
 
 /* ---------- prompts ---------- */
 
@@ -114,6 +117,16 @@ const POOLS = {
   gemini: keyPool.createKeyPool('GEMINI_API_KEY'),
   openrouter: keyPool.createKeyPool('OPENROUTER_API_KEY')
 };
+
+// Keys ke saath chalata hai; key kharab ya limit par ho to aapko Gmail alert (throttle ke saath) jaata hai
+const viaKeys = (pool, name, fn) => keyPool.withKeys(pool, name, fn, {
+  onRotate: (type, slot) => alerts.sendAlert(
+    type === 'auth' ? 'urgent' : 'warning',
+    type === 'auth' ? 'API key kharab hai ya billing ki dikkat' : 'API key ki limit khatam (agli key chalu hui)',
+    { provider: name, slot, kind: type },
+    { timeoutMs: 3000 }
+  )
+});
 
 /* ---------- untrusted text + sensitive data (LLM tak jaane se pehle) ---------- */
 
@@ -405,7 +418,7 @@ async function openaiChat({
 
 // OpenAI: photo + PDF dono. Model env OPENAI_MODEL se badal sakte ho.
 // max_completion_tokens + bina temperature: naye (reasoning) models bhi chalte hain.
-const askOpenAI = (messages, opts) => keyPool.withKeys(POOLS.openai, 'OpenAI', slot => openaiChat({
+const askOpenAI = (messages, opts) => viaKeys(POOLS.openai, 'OpenAI', slot => openaiChat({
   name: 'OpenAI',
   url: 'https://api.openai.com/v1/chat/completions',
   key: slot.key,
@@ -419,7 +432,7 @@ const askOpenAI = (messages, opts) => keyPool.withKeys(POOLS.openai, 'OpenAI', s
   temperature: null
 }));
 
-const askGroq = (messages, opts) => keyPool.withKeys(POOLS.groq, 'Groq', slot => openaiChat({
+const askGroq = (messages, opts) => viaKeys(POOLS.groq, 'Groq', slot => openaiChat({
   name: 'Groq',
   url: 'https://api.groq.com/openai/v1/chat/completions',
   key: slot.key,
@@ -429,7 +442,7 @@ const askGroq = (messages, opts) => keyPool.withKeys(POOLS.groq, 'Groq', slot =>
   opts
 }));
 
-const askOpenRouter = (messages, opts) => keyPool.withKeys(POOLS.openrouter, 'OpenRouter', slot => openaiChat({
+const askOpenRouter = (messages, opts) => viaKeys(POOLS.openrouter, 'OpenRouter', slot => openaiChat({
   name: 'OpenRouter',
   url: 'https://openrouter.ai/api/v1/chat/completions',
   key: slot.key,
@@ -529,7 +542,7 @@ async function askGemini(messages, opts) {
 
   for (const model of models) {
     try {
-      return await keyPool.withKeys(POOLS.gemini, 'Gemini', slot => geminiCall(model, messages, opts, slot));
+      return await viaKeys(POOLS.gemini, 'Gemini', slot => geminiCall(model, messages, opts, slot));
     } catch (e) {
       eh.logError(e, { where: 'gemini_model', provider: 'gemini', source: 'provider' });
       lastErr = e;
@@ -574,7 +587,7 @@ async function verifiedLookup(question, deadline) {
 
   try {
     const model = process.env.GEMINI_SEARCH_MODEL || 'gemini-3.6-flash';
-    const data = await keyPool.withKeys(POOLS.gemini, 'Lookup', async slot => {
+    const data = await viaKeys(POOLS.gemini, 'Lookup', async slot => {
       const r = await post(
         'Lookup',
         GEMINI_URL(model),
@@ -947,6 +960,31 @@ function sendError(res, err, ctx = {}, log = true) {
   return res.status(out.status).json(out.body);
 }
 
+function clientIp(req) {
+  const forwarded = req.headers['x-forwarded-for'];
+  return (typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : '') ||
+    (typeof req.headers['x-real-ip'] === 'string' ? req.headers['x-real-ip'] : '') ||
+    req.socket?.remoteAddress ||
+    'unknown';
+}
+
+function queryParam(req, name) {
+  try {
+    if (req.query && typeof req.query === 'object') return req.query[name];
+    return new URL(req.url || '', 'http://x').searchParams.get(name) ?? undefined;
+  } catch (_) {
+    return undefined;
+  }
+}
+
+// ADMIN_TOKEN (kam se kam 16 akshar) se milan; barabar-time compare, kabhi log/response mein nahi
+function adminOk(supplied) {
+  const expected = String(process.env.ADMIN_TOKEN || '');
+  if (expected.length < 16 || typeof supplied !== 'string') return false;
+  const h = v => crypto.createHash('sha256').update(v).digest();
+  return crypto.timingSafeEqual(h(expected), h(supplied));
+}
+
 /* ---------- handler ---------- */
 
 async function handler(req, res, meta) {
@@ -957,9 +995,29 @@ async function handler(req, res, meta) {
   const debug = process.env.DEBUG_ERRORS === '1';
 
   if (req.method === 'GET') {
+    // Secret test link: /api/chat?alert_test=<ADMIN_TOKEN> => test email bhejta hai. Galat/bina token par normal health jawab.
+    const supplied = queryParam(req, 'alert_test');
+    if (supplied !== undefined) {
+      if (limited(clientIp(req))) {
+        return sendError(res, new eh.AppError({
+          type: eh.ERROR_TYPES.RATE_LIMIT, scope: 'user', retryAfterMs: 60000, code: 'RATE_LIMITED', message: 'ip rate limit'
+        }), { requestId, where: 'chat', scope: 'user' }, false);
+      }
+      if (adminOk(supplied)) {
+        const r = await alerts.sendAlert('info', 'Test alert: Gmail alert sahi chal raha hai',
+          { requestId, note: 'Ye sirf test email hai' }, { force: true, timeoutMs: 8000 });
+        return res.status(200).json({
+          ok: true,
+          alert: { configured: alerts.isConfigured(), sent: r.sent, reason: r.reason, detail: r.detail }
+        });
+      }
+    }
     const health = { ok: true };
     // Debug mein sirf keys ki ginti dikhti hai (kaun si key kitni, cooldown mein kitni); keys kabhi nahi
-    if (debug) health.keys = Object.fromEntries(Object.entries(POOLS).map(([k, p]) => [k, p.summary()]));
+    if (debug) {
+      health.keys = Object.fromEntries(Object.entries(POOLS).map(([k, p]) => [k, p.summary()]));
+      health.alerts = { configured: alerts.isConfigured() };
+    }
     return res.status(200).json(health);
   }
 
@@ -988,14 +1046,7 @@ async function handler(req, res, meta) {
     });
   }
 
-  const forwarded = req.headers['x-forwarded-for'];
-  const ip =
-    (typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : '') ||
-    (typeof req.headers['x-real-ip'] === 'string' ? req.headers['x-real-ip'] : '') ||
-    req.socket?.remoteAddress ||
-    'unknown';
-
-  if (limited(ip)) {
+  if (limited(clientIp(req))) {
     return sendError(res, new eh.AppError({
       type: eh.ERROR_TYPES.RATE_LIMIT,
       scope: 'user',
@@ -1062,6 +1113,7 @@ async function handler(req, res, meta) {
       eh.logError(new eh.AppError({
         type: eh.ERROR_TYPES.AUTH, message: 'no provider api key configured', code: 'NO_PROVIDER'
       }), { requestId, where: 'providers' }, { debug });
+      await alerts.sendAlert('urgent', 'Koi AI API key set nahi hai', { requestId }, { timeoutMs: 3000 });
     }
     const msg = configured.length && hasMedia
       ? 'Abhi ye file type process nahi ho sakta. Photo ya text bhejo.'
@@ -1129,6 +1181,9 @@ async function handler(req, res, meta) {
     const local = engineOnly(env);
     if (local) {
       monitor(env, { fallback: true }, { calls: [], problems: [], verified: true });
+      await alerts.sendAlert('warning', 'AI nahi chala, calculator ka result diya', {
+        requestId, providers: errs.map(x => x.provider).join(', ') || 'koi nahi'
+      }, { timeoutMs: 3000 });
       return res.status(200).json({
         reply: local, checked: true, verified: true, fallback: true, source: 'engine', requestId
       });
@@ -1141,6 +1196,14 @@ async function handler(req, res, meta) {
   const lastErr = errs.length
     ? errs[errs.length - 1].err
     : new eh.AppError({ type: eh.ERROR_TYPES.TIMEOUT, message: 'time budget khatam', code: 'TIME_BUDGET' });
+
+  const lastInfo = eh.classifyError(lastErr);
+  await alerts.sendAlert('urgent', 'Saare AI providers fail ho gaye', {
+    requestId,
+    providers: errs.map(x => x.provider).join(', ') || 'koi nahi',
+    errorType: lastInfo.type,
+    code: lastInfo.code || ''
+  }, { timeoutMs: 3000 });
 
   const out = eh.toHttpResponse(lastErr, { requestId, where: 'providers', scope: 'provider', source: 'provider' });
   if (debug) {
