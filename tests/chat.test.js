@@ -10,7 +10,7 @@ const realFetch = global.fetch;
 
 // Har provider ki saari key env names (base, _1.._10, list): tests ke liye inhe saaf rakhna zaroori hai
 const BASES = ['GROQ_API_KEY', 'GEMINI_API_KEY', 'OPENROUTER_API_KEY', 'OPENAI_API_KEY'];
-const KEYS = ['DEBUG_ERRORS', 'GEMINI_MODEL', 'GEMINI_SEARCH_MODEL', 'OPENAI_MODEL'];
+const KEYS = ['DEBUG_ERRORS', 'GEMINI_MODEL', 'GEMINI_SEARCH_MODEL', 'OPENAI_MODEL', 'GMAIL_USER', 'GMAIL_APP_PASSWORD', 'ALERT_TO', 'ADMIN_TOKEN'];
 BASES.forEach(b => {
   KEYS.push(b, b + 'S');
   for (let i = 1; i <= 10; i++) KEYS.push(b + '_' + i);
@@ -479,4 +479,119 @@ test('handler: knowledge base wale sawal ke baad "Mere numbers se EMI nikalo" EM
   assert.equal(res.code, 200);
   assert.equal(res.body.source, 'router');
   assert.match(res.body.reply, /loan|amount/i);
+});
+
+/* ---------- Gmail alerts + secret test link ---------- */
+
+const alerts = require('../lib/alert');
+const GMAIL = { GMAIL_USER: 'alerts@gmail.com', GMAIL_APP_PASSWORD: 'abcdefghijklmnop', ALERT_TO: 'owner@gmail.com' };
+function fakeMail() {
+  const mails = [];
+  alerts.__reset();
+  alerts.__setNodemailer({ createTransport: () => ({ sendMail: async m => { mails.push(m); } }) });
+  Object.assign(process.env, GMAIL);
+  return mails;
+}
+const TOKEN = 'test-admin-token-1234567890';
+
+test('handler: saare AI providers fail => URGENT Gmail alert, user ka text email mein nahi', async t => {
+  t.after(reset);
+  clearKeys();
+  const mails = fakeMail();
+  process.env.GROQ_API_KEY = 'x';
+  global.fetch = async () => badRes(500, 'boom');
+  const res = mockRes();
+  await handler(req([{ role: 'user', content: 'mera secret sawal 987654' }]), res);
+  assert.notEqual(res.code, 200);
+  assert.equal(mails.length, 1);
+  assert.equal(mails[0].subject, '[URGENT] Rupeyantra: Saare AI providers fail ho gaye');
+  assert.match(mails[0].text, /providers: groq/);
+  assert.ok(!mails[0].text.includes('secret sawal'));
+  assert.ok(!mails[0].text.includes('987654'));
+});
+
+test('handler: koi AI key set na ho => URGENT alert', async t => {
+  t.after(reset);
+  clearKeys();
+  const mails = fakeMail();
+  const res = mockRes();
+  await handler(req([{ role: 'user', content: 'namaste' }]), res);
+  assert.equal(res.code, 503);
+  assert.match(mails[0].subject, /Koi AI API key set nahi hai/);
+});
+
+test('handler: galat (401) Gemini key => jawab milta hai aur "key kharab" alert jaata hai', async t => {
+  t.after(reset);
+  clearKeys();
+  const mails = fakeMail();
+  process.env.GEMINI_API_KEYS = 'alert-bad-aaaa,alert-good-bbbb';
+  global.fetch = async (url, init) =>
+    (init.headers['x-goog-api-key'] === 'alert-bad-aaaa' ? badRes(401, 'API key not valid') : geminiText('Namaste ji'));
+  const res = mockRes();
+  await handler(req([{ role: 'user', content: 'namaste' }]), res);
+  assert.equal(res.code, 200);
+  assert.equal(res.body.reply, 'Namaste ji');
+  assert.equal(mails.length, 1);
+  assert.match(mails[0].subject, /^\[URGENT\].*API key kharab/);
+  assert.match(mails[0].text, /slot: GEMINI_API_KEY#1/);
+  assert.ok(!mails[0].text.includes('alert-bad-aaaa'));
+});
+
+test('handler: key ki limit (429) par WARNING alert, jawab phir bhi milta hai', async t => {
+  t.after(reset);
+  clearKeys();
+  const mails = fakeMail();
+  process.env.GEMINI_API_KEY = 'warn-key-one-aaaa';
+  process.env.GEMINI_API_KEY_2 = 'warn-key-two-bbbb';
+  global.fetch = async (url, init) =>
+    (init.headers['x-goog-api-key'] === 'warn-key-one-aaaa' ? badRes(429, 'rate limit') : geminiText('Namaste ji'));
+  const res = mockRes();
+  await handler(req([{ role: 'user', content: 'namaste' }]), res);
+  assert.equal(res.code, 200);
+  assert.equal(mails.length, 1);
+  assert.match(mails[0].subject, /^\[WARNING\]/);
+});
+
+test('handler: secret test link sahi token par email bhejta hai', async t => {
+  t.after(reset);
+  clearKeys();
+  const mails = fakeMail();
+  process.env.ADMIN_TOKEN = TOKEN;
+  const res = mockRes();
+  await handler({ method: 'GET', headers: { 'x-forwarded-for': '10.9.9.1' }, query: { alert_test: TOKEN } }, res);
+  assert.equal(res.code, 200);
+  assert.equal(res.body.alert.sent, true);
+  assert.equal(res.body.alert.configured, true);
+  assert.equal(mails.length, 1);
+  assert.match(mails[0].subject, /Test alert/);
+  assert.ok(!JSON.stringify(res.body).includes(TOKEN));
+  // dobara turant bhi chalta hai (force), par ghante ki limit rehti hai
+  const again = mockRes();
+  await handler({ method: 'GET', headers: { 'x-forwarded-for': '10.9.9.2' }, query: { alert_test: TOKEN } }, again);
+  assert.equal(again.body.alert.sent, true);
+});
+
+test('handler: galat/chhota/na-set token par test link kuch nahi karta (normal health jawab)', async t => {
+  t.after(reset);
+  clearKeys();
+  const mails = fakeMail();
+  for (const [adminToken, supplied] of [[TOKEN, 'galat-token-1234567890'], [undefined, TOKEN], ['short', 'short']]) {
+    if (adminToken === undefined) delete process.env.ADMIN_TOKEN; else process.env.ADMIN_TOKEN = adminToken;
+    const res = mockRes();
+    await handler({ method: 'GET', headers: { 'x-forwarded-for': '10.9.8.' + Math.floor(Math.random() * 200) }, query: { alert_test: supplied } }, res);
+    assert.equal(res.code, 200);
+    assert.deepEqual(res.body, { ok: true });
+  }
+  assert.equal(mails.length, 0);
+});
+
+test('handler: URL se bhi token padha jaata hai (query object na ho tab)', async t => {
+  t.after(reset);
+  clearKeys();
+  const mails = fakeMail();
+  process.env.ADMIN_TOKEN = TOKEN;
+  const res = mockRes();
+  await handler({ method: 'GET', headers: { 'x-forwarded-for': '10.9.7.1' }, url: '/api/chat?alert_test=' + TOKEN }, res);
+  assert.equal(res.body.alert.sent, true);
+  assert.equal(mails.length, 1);
 });
