@@ -147,3 +147,23 @@ test('summary aur label mein asli key kabhi nahi aati', async () => {
   await withKeys(pool, 'Gemini', async slot => { labels.push(slot.label); return 'ok'; });
   assert.deepEqual(labels, ['GEMINI_API_KEY#1']);
 });
+
+/* ---------- onRotate hook (Gmail alert ke liye) ---------- */
+
+test('withKeys: onRotate hook key badalne par bulaya jaata hai; hook fail ho to bhi request chalti hai', async () => {
+  const { pool } = setup({ GEMINI_API_KEY: 'k1', GEMINI_API_KEY_2: 'k2' });
+  const seen = [];
+  const out = await withKeys(pool, 'Gemini', async slot => {
+    if (slot.key === 'k1') throw httpErr(401, 'API key not valid');
+    return slot.key;
+  }, { onRotate: (type, label) => { seen.push([type, label]); } });
+  assert.equal(out, 'k2');
+  assert.deepEqual(seen, [['auth', 'GEMINI_API_KEY#1']]);
+
+  const { pool: pool2 } = setup({ GEMINI_API_KEY: 'k1', GEMINI_API_KEY_2: 'k2' });
+  const out2 = await withKeys(pool2, 'Gemini', async slot => {
+    if (slot.key === 'k1') throw httpErr(429, 'rate limit');
+    return slot.key;
+  }, { onRotate: () => { throw new Error('hook toota'); } });
+  assert.equal(out2, 'k2');
+});
