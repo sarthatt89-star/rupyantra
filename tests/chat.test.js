@@ -595,3 +595,32 @@ test('handler: URL se bhi token padha jaata hai (query object na ho tab)', async
   assert.equal(res.body.alert.sent, true);
   assert.equal(mails.length, 1);
 });
+
+test('handler: token ke aage-peeche space ho to bhi chalta hai (mobile keyboard)', async t => {
+  t.after(reset);
+  clearKeys();
+  const mails = fakeMail();
+  process.env.ADMIN_TOKEN = TOKEN + ' ';
+  const res = mockRes();
+  await handler({ method: 'GET', headers: { 'x-forwarded-for': '10.9.6.1' }, query: { alert_test: ' ' + TOKEN } }, res);
+  assert.equal(res.body.alert.sent, true);
+  assert.equal(mails.length, 1);
+});
+
+test('handler: DEBUG_ERRORS=1 mein test link ki wajah batata hai (token ki value kabhi nahi)', async t => {
+  t.after(reset);
+  clearKeys();
+  fakeMail();
+  process.env.DEBUG_ERRORS = '1';
+  const note = async (adminToken, supplied) => {
+    if (adminToken === undefined) delete process.env.ADMIN_TOKEN; else process.env.ADMIN_TOKEN = adminToken;
+    const res = mockRes();
+    await handler({ method: 'GET', headers: { 'x-forwarded-for': '10.9.5.' + Math.floor(Math.random() * 200) }, query: { alert_test: supplied } }, res);
+    assert.ok(!JSON.stringify(res.body).includes(TOKEN));
+    return res.body.alert_test;
+  };
+  assert.match(await note(undefined, TOKEN), /set nahi hai/);
+  assert.match(await note('short', 'short'), /16 akshar/);
+  assert.match(await note(TOKEN, ''), /khali/);
+  assert.match(await note(TOKEN, 'galat-token-1234567890'), /match nahi hua/);
+});
