@@ -977,12 +977,17 @@ function queryParam(req, name) {
   }
 }
 
-// ADMIN_TOKEN (kam se kam 16 akshar) se milan; barabar-time compare, kabhi log/response mein nahi
-function adminOk(supplied) {
-  const expected = String(process.env.ADMIN_TOKEN || '');
-  if (expected.length < 16 || typeof supplied !== 'string') return false;
+// ADMIN_TOKEN (kam se kam 16 akshar) se milan; barabar-time compare, kabhi log/response mein nahi.
+// Aage-peeche ke space hata diye jaate hain (mobile keyboard aksar space jod deta hai).
+function adminCheck(supplied) {
+  const expected = String(process.env.ADMIN_TOKEN || '').trim();
+  if (!expected) return { ok: false, reason: 'ADMIN_TOKEN server par set nahi hai (variable daalo aur Redeploy karo)' };
+  if (expected.length < 16) return { ok: false, reason: 'ADMIN_TOKEN 16 akshar se chhota hai' };
+  if (typeof supplied !== 'string' || !supplied.trim()) return { ok: false, reason: 'link mein token khali hai' };
   const h = v => crypto.createHash('sha256').update(v).digest();
-  return crypto.timingSafeEqual(h(expected), h(supplied));
+  return crypto.timingSafeEqual(h(expected), h(supplied.trim()))
+    ? { ok: true }
+    : { ok: false, reason: 'token match nahi hua (link ka token aur Vercel ka token alag hain)' };
 }
 
 /* ---------- handler ---------- */
@@ -996,6 +1001,7 @@ async function handler(req, res, meta) {
 
   if (req.method === 'GET') {
     // Secret test link: /api/chat?alert_test=<ADMIN_TOKEN> => test email bhejta hai. Galat/bina token par normal health jawab.
+    let testNote;
     const supplied = queryParam(req, 'alert_test');
     if (supplied !== undefined) {
       if (limited(clientIp(req))) {
@@ -1003,7 +1009,8 @@ async function handler(req, res, meta) {
           type: eh.ERROR_TYPES.RATE_LIMIT, scope: 'user', retryAfterMs: 60000, code: 'RATE_LIMITED', message: 'ip rate limit'
         }), { requestId, where: 'chat', scope: 'user' }, false);
       }
-      if (adminOk(supplied)) {
+      const chk = adminCheck(supplied);
+      if (chk.ok) {
         const r = await alerts.sendAlert('info', 'Test alert: Gmail alert sahi chal raha hai',
           { requestId, note: 'Ye sirf test email hai' }, { force: true, timeoutMs: 8000 });
         return res.status(200).json({
@@ -1011,8 +1018,11 @@ async function handler(req, res, meta) {
           alert: { configured: alerts.isConfigured(), sent: r.sent, reason: r.reason, detail: r.detail }
         });
       }
+      testNote = chk.reason;
     }
     const health = { ok: true };
+    // Sirf DEBUG_ERRORS=1 mein: test link kyun kaam nahi kiya (token ya value nahi dikhti)
+    if (debug && testNote) health.alert_test = testNote;
     // Debug mein sirf keys ki ginti dikhti hai (kaun si key kitni, cooldown mein kitni); keys kabhi nahi
     if (debug) {
       health.keys = Object.fromEntries(Object.entries(POOLS).map(([k, p]) => [k, p.summary()]));
