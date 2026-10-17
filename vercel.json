@@ -3,6 +3,10 @@
     "api/chat.js": {
       "maxDuration": 60,
       "includeFiles": "lib/**"
+    },
+    "api/mail-ask.js": {
+      "maxDuration": 30,
+      "includeFiles": "lib/**"
     }
   },
   "rewrites": [
