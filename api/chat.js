@@ -12,6 +12,7 @@
  *  - lib/system-prompt.js     : AI ke saare prompts / niyam
  *  - lib/knowledge-base.js    : aam concept sawalon ke tayyar jawab (AI/API ke bina)
  *  - lib/alert.js             : zaroori dikkat par Gmail alert (throttle ke saath)
+ *  - lib/stats.js             : roz ki ginti Upstash mein (sirf ginti, user ka text kabhi nahi)
  *
  * Request flow:
  *   1. wrapHandler (request id + koi bhi throw => sanitized JSON), rate limit, body/attachment checks
@@ -36,6 +37,7 @@ const validator = require('../lib/finance-validator');
 const keyPool = require('../lib/key-pool');
 const knowledge = require('../lib/knowledge-base');
 const alerts = require('../lib/alert');
+const stats = require('../lib/stats');
 const crypto = require('node:crypto');
 
 /* ---------- prompts ---------- */
@@ -120,12 +122,18 @@ const POOLS = {
 
 // Keys ke saath chalata hai; key kharab ya limit par ho to aapko Gmail alert (throttle ke saath) jaata hai
 const viaKeys = (pool, name, fn) => keyPool.withKeys(pool, name, fn, {
-  onRotate: (type, slot) => alerts.sendAlert(
-    type === 'auth' ? 'urgent' : 'warning',
-    type === 'auth' ? 'API key kharab hai ya billing ki dikkat' : 'API key ki limit khatam (agli key chalu hui)',
-    { provider: name, slot, kind: type },
-    { timeoutMs: 3000 }
-  )
+  onRotate: async (type, slot) => {
+    await stats.record(
+      { ['rotate.' + type]: 1, ['rotate.' + type + '.' + String(name).toLowerCase()]: 1 },
+      { type: 'key_' + type, code: '', provider: slot }
+    );
+    await alerts.sendAlert(
+      type === 'auth' ? 'urgent' : 'warning',
+      type === 'auth' ? 'API key kharab hai ya billing ki dikkat' : 'API key ki limit khatam (agli key chalu hui)',
+      { provider: name, slot, kind: type },
+      { timeoutMs: 3000 }
+    );
+  }
 });
 
 /* ---------- untrusted text + sensitive data (LLM tak jaane se pehle) ---------- */
@@ -931,6 +939,20 @@ function safeRoute(messages, opts) {
   return EMPTY_ROUTE;
 }
 
+// Roz ki ginti ke naam: sirf category/provider/error ka type; user ka text ya number kabhi nahi
+function usageCounters(base, route, errs) {
+  const c = { requests: 1, ...base };
+  if (route && route.action) c['route.' + route.action] = 1;
+  if (route && route.intent) c['intent.' + route.intent] = 1;
+  for (const x of errs || []) {
+    const pk = 'provider.' + x.provider + '.fail';
+    c[pk] = (c[pk] || 0) + 1;
+    const ek = 'error.' + eh.classifyError(x.err).type;
+    c[ek] = (c[ek] || 0) + 1;
+  }
+  return c;
+}
+
 // Sirf codes/field names/amount bands log hote hain; user text ya raw numbers nahi
 function monitor(env, out, trace) {
   try {
@@ -1098,6 +1120,7 @@ async function handler(req, res, meta) {
       const payload = { reply: direct, checked: false, verified: false, source: 'router', action: route.action, requestId };
       const options = route.clarification && route.clarification.options;
       if (Array.isArray(options) && options.length) payload.options = options;
+      await stats.record(usageCounters({ ok: 1 }, route));
       return res.status(200).json(payload);
     }
   }
@@ -1106,6 +1129,7 @@ async function handler(req, res, meta) {
   if (!hasMedia) {
     const kb = knowledge.lookup(route, last.content);
     if (kb) {
+      await stats.record(usageCounters({ ok: 1, kb_hit: 1 }, route));
       return res.status(200).json({
         reply: kb.reply, checked: false, verified: false, source: 'knowledge', topic: kb.topic,
         options: kb.options, requestId
@@ -1128,6 +1152,7 @@ async function handler(req, res, meta) {
     const msg = configured.length && hasMedia
       ? 'Abhi ye file type process nahi ho sakta. Photo ya text bhejo.'
       : 'Assistant abhi available nahi hai. Thodi der baad try karo.';
+    await stats.record(usageCounters({ fail: 1, 'error.no_provider': 1 }, route));
     return res.status(503).json({ message: msg, requestId });
   }
 
@@ -1169,6 +1194,8 @@ async function handler(req, res, meta) {
       const run = () => answerWith(provider, messages, { ...env, trace });
       const out = open.has(provider.name) ? await run() : await breaker.exec(provider.name, run);
       monitor(env, out, trace);
+      await stats.record(usageCounters(
+        { ok: 1, ['provider.' + provider.name + '.ok']: 1, ...(out.fallback ? { fallback: 1 } : {}) }, route, errs));
 
       const payload = {
         reply: out.text,
@@ -1191,6 +1218,7 @@ async function handler(req, res, meta) {
     const local = engineOnly(env);
     if (local) {
       monitor(env, { fallback: true }, { calls: [], problems: [], verified: true });
+      await stats.record(usageCounters({ ok: 1, engine_only: 1 }, route, errs));
       await alerts.sendAlert('warning', 'AI nahi chala, calculator ka result diya', {
         requestId, providers: errs.map(x => x.provider).join(', ') || 'koi nahi'
       }, { timeoutMs: 3000 });
@@ -1208,6 +1236,9 @@ async function handler(req, res, meta) {
     : new eh.AppError({ type: eh.ERROR_TYPES.TIMEOUT, message: 'time budget khatam', code: 'TIME_BUDGET' });
 
   const lastInfo = eh.classifyError(lastErr);
+  await stats.record(usageCounters({ fail: 1 }, route, errs), {
+    type: lastInfo.type, code: lastInfo.code || '', provider: errs.map(x => x.provider).join(',')
+  });
   await alerts.sendAlert('urgent', 'Saare AI providers fail ho gaye', {
     requestId,
     providers: errs.map(x => x.provider).join(', ') || 'koi nahi',
