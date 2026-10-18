@@ -10,7 +10,7 @@ const realFetch = global.fetch;
 
 // Har provider ki saari key env names (base, _1.._10, list): tests ke liye inhe saaf rakhna zaroori hai
 const BASES = ['GROQ_API_KEY', 'GEMINI_API_KEY', 'OPENROUTER_API_KEY', 'OPENAI_API_KEY'];
-const KEYS = ['DEBUG_ERRORS', 'GEMINI_MODEL', 'GEMINI_SEARCH_MODEL', 'OPENAI_MODEL', 'GMAIL_USER', 'GMAIL_APP_PASSWORD', 'ALERT_TO', 'ADMIN_TOKEN'];
+const KEYS = ['DEBUG_ERRORS', 'GEMINI_MODEL', 'GEMINI_SEARCH_MODEL', 'OPENAI_MODEL', 'GMAIL_USER', 'GMAIL_APP_PASSWORD', 'ALERT_TO', 'ADMIN_TOKEN', 'UPSTASH_REDIS_REST_URL', 'UPSTASH_REDIS_REST_TOKEN'];
 BASES.forEach(b => {
   KEYS.push(b, b + 'S');
   for (let i = 1; i <= 10; i++) KEYS.push(b + '_' + i);
@@ -623,4 +623,84 @@ test('handler: DEBUG_ERRORS=1 mein test link ki wajah batata hai (token ki value
   assert.match(await note('short', 'short'), /16 akshar/);
   assert.match(await note(TOKEN, ''), /khali/);
   assert.match(await note(TOKEN, 'galat-token-1234567890'), /match nahi hua/);
+});
+
+/* ---------- roz ki ginti (Upstash) ---------- */
+
+function upstashSetup(providerFetch) {
+  process.env.UPSTASH_REDIS_REST_URL = 'https://stats-test.upstash.io';
+  process.env.UPSTASH_REDIS_REST_TOKEN = 'upstash-test-token-123';
+  const bodies = [];
+  global.fetch = async (url, init) => {
+    if (String(url).includes('stats-test.upstash.io')) {
+      const cmds = JSON.parse(init.body);
+      bodies.push(cmds);
+      return okRes(cmds.map(() => ({ result: 1 })));
+    }
+    return providerFetch(url, init);
+  };
+  return bodies;
+}
+const counterNames = bodies => bodies.flat().filter(c => c[0] === 'HINCRBY').map(c => c[2]);
+
+test('handler: tayyar jawab par ginti (kb_hit, intent) likhi jaati hai', async t => {
+  t.after(reset);
+  clearKeys();
+  const bodies = upstashSetup(async () => okRes({}));
+  const res = mockRes();
+  await handler(req([{ role: 'user', content: 'EMI kya hai?' }]), res);
+  assert.equal(res.body.source, 'knowledge');
+  const names = counterNames(bodies);
+  for (const n of ['requests', 'ok', 'kb_hit', 'intent.emi', 'route.answer_concept']) assert.ok(names.includes(n), n);
+});
+
+test('handler: provider ke jawab par ginti, aur user ka text Upstash mein nahi jaata', async t => {
+  t.after(reset);
+  clearKeys();
+  process.env.GEMINI_API_KEY = 'stats-gem-key';
+  const bodies = upstashSetup(async () => geminiText('Namaste ji'));
+  const res = mockRes();
+  await handler(req([{ role: 'user', content: 'namaste mera naam RAMESH-PRIVATE hai' }]), res);
+  assert.equal(res.code, 200);
+  const names = counterNames(bodies);
+  assert.ok(names.includes('provider.gemini.ok'));
+  assert.ok(names.includes('requests') && names.includes('ok'));
+  const everything = JSON.stringify(bodies);
+  assert.ok(!everything.includes('RAMESH-PRIVATE'));
+  assert.ok(!everything.includes('Namaste ji'));
+  assert.ok(!everything.includes('stats-gem-key'));
+});
+
+test('handler: saare provider fail par fail ginti + error ki entry (sirf type/code/provider)', async t => {
+  t.after(reset);
+  clearKeys();
+  process.env.GROQ_API_KEY = 'stats-groq-key';
+  const bodies = upstashSetup(async () => badRes(500, 'boom USER-SECRET'));
+  const res = mockRes();
+  await handler(req([{ role: 'user', content: 'koi sawal USER-SECRET' }]), res);
+  assert.notEqual(res.code, 200);
+  const names = counterNames(bodies);
+  assert.ok(names.includes('fail'));
+  assert.ok(names.includes('provider.groq.fail'));
+  assert.ok(names.includes('error.server'));
+  const push = bodies.flat().find(c => c[0] === 'LPUSH');
+  assert.ok(push);
+  assert.deepEqual(Object.keys(JSON.parse(push[2])).sort(), ['code', 'provider', 't', 'type']);
+  assert.ok(!JSON.stringify(bodies).includes('USER-SECRET'));
+});
+
+test('handler: Upstash band/fail ho to chat phir bhi chalta hai', async t => {
+  t.after(reset);
+  clearKeys();
+  process.env.GEMINI_API_KEY = 'stats-gem-key2';
+  process.env.UPSTASH_REDIS_REST_URL = 'https://stats-test.upstash.io';
+  process.env.UPSTASH_REDIS_REST_TOKEN = 'upstash-test-token-123';
+  global.fetch = async url => {
+    if (String(url).includes('upstash.io')) throw new Error('upstash down');
+    return geminiText('Namaste ji');
+  };
+  const res = mockRes();
+  await handler(req([{ role: 'user', content: 'namaste' }]), res);
+  assert.equal(res.code, 200);
+  assert.equal(res.body.reply, 'Namaste ji');
 });
