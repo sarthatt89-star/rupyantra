@@ -1,0 +1,27 @@
+name: Tests
+
+# Har push aur pull request par tests chalte hain.
+# Agar koi test fail ho to GitHub par laal (fail) dikhta hai.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code lo
+        uses: actions/checkout@v4
+
+      - name: Node.js setup
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Dependencies install
+        run: npm install
+
+      - name: Tests chalao
+        run: npm test
