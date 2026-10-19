@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Admin Login</title>
+<style>
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;max-width:360px;margin:40px auto;padding:0 16px;color:#1b1b2f}
+h1{font-size:20px;margin:0 0 16px}
+button{font:inherit;padding:10px 14px;border:0;border-radius:8px;background:#3b5bdb;color:#fff;cursor:pointer;width:100%}
+button:disabled{opacity:.5}
+input{font:inherit;font-size:18px;letter-spacing:6px;text-align:center;width:100%;padding:10px;margin:8px 0;box-sizing:border-box;border:1px solid #bbb;border-radius:8px}
+.msg{margin:10px 0;font-size:14px;min-height:20px}
+.err{color:#c92a2a}.ok{color:#2b8a3e}
+.box{margin-top:12px}
+</style>
+</head>
+<body>
+<h1>Admin login</h1>
+
+<div id="login">
+  <div class="box">
+    <button id="reqBtn" type="button">OTP bhejo</button>
+  </div>
+  <div class="box" id="verifyBox" hidden>
+    <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+    <button id="verifyBtn" type="button">Login</button>
+  </div>
+  <div id="msg" class="msg" role="status"></div>
+</div>
+
+<div id="loggedIn" hidden>
+  <p class="msg ok" id="who"></p>
+  <button id="logoutBtn" type="button">Logout</button>
+  <p class="msg">Admin panel ke baaki hisse (status, glossary) agle steps mein aayenge.</p>
+</div>
+
+<script>
+(function () {
+  var API = '/api/admin/auth?action=';
+  var $ = function (id) { return document.getElementById(id); };
+
+  function show(msg, cls) {
+    var el = $('msg');
+    el.textContent = msg || '';
+    el.className = 'msg ' + (cls || '');
+  }
+
+  function post(action, body) {
+    return fetch(API + action, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {})
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        j.status = r.status;
+        return j;
+      });
+    });
+  }
+
+  function showLoggedIn(email) {
+    $('login').hidden = true;
+    $('loggedIn').hidden = false;
+    $('who').textContent = 'Login hai: ' + email;
+  }
+
+  fetch(API + 'session', { credentials: 'same-origin' })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) { if (j && j.ok) showLoggedIn(j.email); })
+    .catch(function () {});
+
+  $('reqBtn').addEventListener('click', function () {
+    $('reqBtn').disabled = true;
+    show('OTP bheja ja raha hai...');
+    post('request').then(function (j) {
+      if (j.ok) {
+        $('verifyBox').hidden = false;
+        $('code').focus();
+        show(j.message, 'ok');
+      } else {
+        show(j.message || 'OTP nahi bheja ja saka.', 'err');
+      }
+    }).catch(function () {
+      show('Network ki dikkat. Dobara try karein.', 'err');
+    }).then(function () {
+      setTimeout(function () { $('reqBtn').disabled = false; }, 60000);
+    });
+  });
+
+  $('verifyBtn').addEventListener('click', function () {
+    var code = $('code').value.trim();
+    if (!/^\d{6}$/.test(code)) { show('6 digit ka OTP daalein.', 'err'); return; }
+    $('verifyBtn').disabled = true;
+    post('verify', { code: code }).then(function (j) {
+      if (j.ok) {
+        showLoggedIn(j.email || 'admin');
+        fetch(API + 'session', { credentials: 'same-origin' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (s) { if (s && s.ok) showLoggedIn(s.email); });
+      } else {
+        var extra = (j.left !== undefined) ? ' (baaki koshish: ' + j.left + ')' : '';
+        show((j.message || 'Login nahi hua.') + extra, 'err');
+        $('verifyBtn').disabled = false;
+      }
+    }).catch(function () {
+      show('Network ki dikkat. Dobara try karein.', 'err');
+      $('verifyBtn').disabled = false;
+    });
+  });
+
+  $('logoutBtn').addEventListener('click', function () {
+    post('logout').then(function () { location.reload(); });
+  });
+})();
+</script>
+</body>
+</html>
