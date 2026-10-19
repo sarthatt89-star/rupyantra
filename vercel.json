@@ -7,12 +7,20 @@
     "api/mail-ask.js": {
       "maxDuration": 30,
       "includeFiles": "lib/**"
+    },
+    "api/admin/auth.js": {
+      "maxDuration": 15,
+      "includeFiles": "lib/**"
     }
   },
   "rewrites": [
     {
       "source": "/ai",
       "destination": "/index.html"
+    },
+    {
+      "source": "/admin",
+      "destination": "/admin.html"
     }
   ],
   "headers": [
