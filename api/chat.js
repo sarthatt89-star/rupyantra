@@ -38,6 +38,7 @@ const keyPool = require('../lib/key-pool');
 const knowledge = require('../lib/knowledge-base');
 const alerts = require('../lib/alert');
 const stats = require('../lib/stats');
+const glossary = require('../lib/glossary');
 const crypto = require('node:crypto');
 
 /* ---------- prompts ---------- */
@@ -1133,6 +1134,17 @@ async function handler(req, res, meta) {
       return res.status(200).json({
         reply: kb.reply, checked: false, verified: false, source: 'knowledge', topic: kb.topic,
         options: kb.options, requestId
+      });
+    }
+  }
+
+  // 2c) Admin ki glossary: sirf aam (general) sawal par, rate/calculator wale sawal ko nahi chhuta
+  if (!hasMedia && ['general_chat', 'answer_concept'].includes(route.action)) {
+    const g = await glossary.lookup(last.content);
+    if (g) {
+      await stats.record(usageCounters({ ok: 1, glossary_hit: 1 }, route));
+      return res.status(200).json({
+        reply: g.text, checked: false, verified: false, source: 'glossary', topic: g.term, requestId
       });
     }
   }
