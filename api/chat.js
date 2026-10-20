@@ -945,6 +945,7 @@ function usageCounters(base, route, errs) {
   const c = { requests: 1, ...base };
   if (route && route.action) c['route.' + route.action] = 1;
   if (route && route.intent) c['intent.' + route.intent] = 1;
+  if (route && route.intent && (base.fail || base.fallback)) c['miss.' + route.intent] = 1;
   for (const x of errs || []) {
     const pk = 'provider.' + x.provider + '.fail';
     c[pk] = (c[pk] || 0) + 1;
