@@ -52,6 +52,8 @@ input{font:inherit;font-size:18px;letter-spacing:6px;text-align:center;width:100
   <div class="box"><button id="gSaveBtn" type="button">Save</button></div>
   <div id="gMsg" class="msg" role="status"></div>
   <div id="gList"></div>
+  <h2>Sawal report (aaj)</h2>
+  <div id="qReport"></div>
   <div class="box"><button id="logoutBtn" type="button">Logout</button></div>
 </div>
 
@@ -171,6 +173,7 @@ input{font:inherit;font-size:18px;letter-spacing:6px;text-align:center;width:100
     $('who').textContent = 'Login hai: ' + email;
     loadStatus();
     loadGlossary();
+    loadReport();
   }
 
   getJson(AUTH + 'session').then(function (j) {
@@ -281,6 +284,34 @@ input{font:inherit;font-size:18px;letter-spacing:6px;text-align:center;width:100
       .catch(function () { setMsg('gMsg', 'Network ki dikkat.', 'err'); })
       .then(function () { $('gSaveBtn').disabled = false; });
   });
+
+  function loadReport() {
+    return getJson('/api/admin/report').then(function (j) {
+      if (j.status === 401) { showLogin(); return; }
+      var box = $('qReport');
+      box.textContent = '';
+      if (!j.ok) { box.textContent = 'Report nahi mili.'; return; }
+      var t = j.totals || {};
+      box.appendChild(row('Kul sawal', true, String(t.asked)));
+      box.appendChild(row('Jawab mila', true, String(t.answered) + ' · tayyar ' + t.knowledge + ' · glossary ' + t.glossary));
+      box.appendChild(row('Fail / fallback', (t.failed + t.fallback) === 0, t.failed + ' fail · ' + t.fallback + ' fallback'));
+      if (!j.available) {
+        var note = document.createElement('p');
+        note.className = 'small';
+        note.textContent = 'Ginti (Upstash) chalu nahi hai, isliye ye data khaali hai.';
+        box.appendChild(note);
+      }
+      (j.topics || []).forEach(function (x) {
+        box.appendChild(row(x.topic, x.missed === 0, x.asked + ' pucha · ' + x.missed + ' jawab nahi mila'));
+      });
+      if (!(j.topics || []).length) {
+        var none = document.createElement('p');
+        none.className = 'small';
+        none.textContent = 'Aaj abhi koi topic record nahi hua.';
+        box.appendChild(none);
+      }
+    }).catch(function () { $('qReport').textContent = 'Report load nahi hui.'; });
+  }
 
   $('chatBtn').addEventListener('click', function () {
     var q = $('chatIn').value.trim();
