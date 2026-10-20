@@ -41,6 +41,10 @@ input{font:inherit;font-size:18px;letter-spacing:6px;text-align:center;width:100
   <button id="refreshBtn" type="button">Status refresh karo</button>
   <div id="statusMsg" class="msg" role="status"></div>
   <div id="report"></div>
+  <h2>AI se baat</h2>
+  <textarea id="chatIn" rows="3" maxlength="1000" placeholder="Jaise: aaj kya error aayi?" style="width:100%;box-sizing:border-box;font:inherit;padding:8px;border:1px solid #bbb;border-radius:8px"></textarea>
+  <div class="box"><button id="chatBtn" type="button">Poochho</button></div>
+  <div id="chatOut" class="msg" style="white-space:pre-wrap"></div>
   <div class="box"><button id="logoutBtn" type="button">Logout</button></div>
 </div>
 
@@ -202,6 +206,28 @@ input{font:inherit;font-size:18px;letter-spacing:6px;text-align:center;width:100
   });
 
   $('refreshBtn').addEventListener('click', loadStatus);
+
+  $('chatBtn').addEventListener('click', function () {
+    var q = $('chatIn').value.trim();
+    if (!q) { setMsg('chatOut', 'Sawal likhein.', 'err'); return; }
+    $('chatBtn').disabled = true;
+    setMsg('chatOut', 'Jawab soch raha hoon...');
+    fetch('/api/admin/chat', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: q })
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) { j.status = r.status; return j; });
+    }).then(function (j) {
+      if (j.ok) { setMsg('chatOut', j.answer, 'ok'); }
+      else if (j.status === 401) { showLogin(); }
+      else { setMsg('chatOut', j.message || 'Jawab nahi mila.', 'err'); }
+    }).catch(function () {
+      setMsg('chatOut', 'Network ki dikkat.', 'err');
+    }).then(function () {
+      $('chatBtn').disabled = false;
+    });
+  });
 
   $('logoutBtn').addEventListener('click', function () {
     post('logout').then(function () { location.reload(); });
