@@ -167,7 +167,13 @@ h2::before{content:"## ";color:var(--dim)}
     if (!/^\d{6}$/.test(code)) { setMsg('msg', '6 digit ka OTP daalein.', 'bad'); return; }
     $('verifyBtn').disabled = true;
     postJson(AUTH + 'verify', { code: code }).then(function (j) {
-      if (j.ok) { jfetch(AUTH + 'session').then(function (s) { showDash(s.email || 'admin'); }); }
+      if (j.ok) {
+        jfetch(AUTH + 'session').then(function (s) {
+          if (s.ok) { showDash(s.email); return; }
+          setMsg('msg', 'Login hua par session nahi bana (cookie ya store ki dikkat). Dobara OTP mangwayein.', 'bad');
+          $('verifyBtn').disabled = false;
+        });
+      }
       else { setMsg('msg', (j.message || 'Login nahi hua.') + (j.left !== undefined ? ' (baaki: ' + j.left + ')' : ''), 'bad'); $('verifyBtn').disabled = false; }
     }).catch(function () { setMsg('msg', 'Network ki dikkat.', 'bad'); $('verifyBtn').disabled = false; });
   });
