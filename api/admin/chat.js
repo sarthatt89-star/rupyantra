@@ -2,8 +2,8 @@
 
 /*
  * Admin chat API (api/admin/chat.js)
- *   POST /api/admin/chat   body { message }  -> login ke baad, status report par based jawab
- * Sirf admin. Koi badlaav nahi karta.
+ *   POST /api/admin/chat   body { message, history? }  -> login ke baad, report + knowledge par based jawab
+ * Sirf admin. Koi badlaav nahi karta. Kuch save nahi hota.
  */
 
 const { createAdminAuth, parseCookie, COOKIE } = require('../../lib/admin-auth');
@@ -14,7 +14,7 @@ const upstash = require('../../lib/upstash');
 const eh = require('../../lib/error-handler');
 
 const HOUR_MS = 3600 * 1000;
-const HOURLY_CAP = 30;
+const HOURLY_CAP = 60;
 let hits = [];
 
 function underCap(t = Date.now()) {
@@ -68,7 +68,7 @@ function createHandler(deps = {}) {
 
       const report = await status.build();
       try {
-        const answer = await ask(message, report);
+        const answer = await ask(message, report, body.history);
         return res.status(200).json({ ok: true, answer });
       } catch (_) {
         return res.status(503).json({ ok: false, error: 'ai_unavailable', message: 'AI abhi available nahi. Thodi der baad try karein.' });
