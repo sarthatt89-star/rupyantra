@@ -45,6 +45,13 @@ input{font:inherit;font-size:18px;letter-spacing:6px;text-align:center;width:100
   <textarea id="chatIn" rows="3" maxlength="1000" placeholder="Jaise: aaj kya error aayi?" style="width:100%;box-sizing:border-box;font:inherit;padding:8px;border:1px solid #bbb;border-radius:8px"></textarea>
   <div class="box"><button id="chatBtn" type="button">Poochho</button></div>
   <div id="chatOut" class="msg" style="white-space:pre-wrap"></div>
+  <h2>Glossary</h2>
+  <p class="small">Yahan jo daalenge, wo chat mein us term ke poochhne par jawab ban jayega.</p>
+  <input id="gTerm" maxlength="60" placeholder="Term (jaise: SIP)" style="font-size:14px;letter-spacing:0;text-align:left">
+  <textarea id="gText" rows="4" maxlength="1500" placeholder="Iska matlab (10 se 1500 akshar, bina < > ke)" style="width:100%;box-sizing:border-box;font:inherit;padding:8px;border:1px solid #bbb;border-radius:8px"></textarea>
+  <div class="box"><button id="gSaveBtn" type="button">Save</button></div>
+  <div id="gMsg" class="msg" role="status"></div>
+  <div id="gList"></div>
   <div class="box"><button id="logoutBtn" type="button">Logout</button></div>
 </div>
 
@@ -163,6 +170,7 @@ input{font:inherit;font-size:18px;letter-spacing:6px;text-align:center;width:100
     $('loggedIn').hidden = false;
     $('who').textContent = 'Login hai: ' + email;
     loadStatus();
+    loadGlossary();
   }
 
   getJson(AUTH + 'session').then(function (j) {
@@ -206,6 +214,73 @@ input{font:inherit;font-size:18px;letter-spacing:6px;text-align:center;width:100
   });
 
   $('refreshBtn').addEventListener('click', loadStatus);
+
+  function loadGlossary() {
+    return getJson('/api/admin/glossary').then(function (j) {
+      if (j.status === 401) { showLogin(); return; }
+      var box = $('gList');
+      box.textContent = '';
+      (j.entries || []).forEach(function (e) {
+        var wrap = document.createElement('div');
+        wrap.className = 'row';
+        var left = document.createElement('span');
+        left.textContent = e.term;
+        var right = document.createElement('span');
+        var edit = document.createElement('button');
+        edit.type = 'button';
+        edit.textContent = 'Edit';
+        edit.style.width = 'auto';
+        edit.style.padding = '4px 8px';
+        edit.addEventListener('click', function () {
+          $('gTerm').value = e.term;
+          $('gText').value = e.text;
+          setMsg('gMsg', 'Edit karke Save dabayein.');
+        });
+        var del = document.createElement('button');
+        del.type = 'button';
+        del.textContent = 'Hatao';
+        del.style.width = 'auto';
+        del.style.padding = '4px 8px';
+        del.style.background = '#c92a2a';
+        del.addEventListener('click', function () {
+          if (!confirm('"' + e.term + '" hatana hai?')) return;
+          fetch('/api/admin/glossary?term=' + encodeURIComponent(e.term), {
+            method: 'DELETE', credentials: 'same-origin'
+          }).then(function (r) { return r.json().catch(function () { return {}; }); })
+            .then(function (d) { setMsg('gMsg', d.message || 'Hata diya.', d.ok ? 'ok' : 'err'); loadGlossary(); });
+        });
+        right.appendChild(edit);
+        right.appendChild(document.createTextNode(' '));
+        right.appendChild(del);
+        wrap.appendChild(left);
+        wrap.appendChild(right);
+        box.appendChild(wrap);
+      });
+      if (!(j.entries || []).length) {
+        var none = document.createElement('p');
+        none.className = 'small';
+        none.textContent = 'Abhi koi entry nahi hai.';
+        box.appendChild(none);
+      }
+    }).catch(function () { setMsg('gMsg', 'Glossary load nahi hui.', 'err'); });
+  }
+
+  $('gSaveBtn').addEventListener('click', function () {
+    var term = $('gTerm').value.trim();
+    var text = $('gText').value.trim();
+    $('gSaveBtn').disabled = true;
+    fetch('/api/admin/glossary', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ term: term, text: text })
+    }).then(function (r) { return r.json().catch(function () { return {}; }); })
+      .then(function (d) {
+        setMsg('gMsg', d.message || 'Save nahi hua.', d.ok ? 'ok' : 'err');
+        if (d.ok) { $('gTerm').value = ''; $('gText').value = ''; loadGlossary(); }
+      })
+      .catch(function () { setMsg('gMsg', 'Network ki dikkat.', 'err'); })
+      .then(function () { $('gSaveBtn').disabled = false; });
+  });
 
   $('chatBtn').addEventListener('click', function () {
     var q = $('chatIn').value.trim();
