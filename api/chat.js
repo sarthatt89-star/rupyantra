@@ -8,6 +8,7 @@
  *  - lib/finance-engine.js    : calculators, conversation context, reply ke numbers ki verification
  *  - lib/finance-validator.js : tool result ka independent cross-check, claim check, injection/sensitive-data guard, safe log
  *  - lib/error-handler.js     : retry, timeout, circuit breaker, friendly errors, request id, safe logging
+ *  - lib/providers.js         : saare AI providers ki list; koi bhi key (naam kuch bhi, ya AI_KEYS) apne aap pehchani jaati hai
  *  - lib/key-pool.js          : har provider ki kai API keys; ek ki limit khatam to agli key chalti hai
  *  - lib/system-prompt.js     : AI ke saare prompts / niyam
  *  - lib/knowledge-base.js    : aam concept sawalon ke tayyar jawab (AI/API ke bina)
@@ -18,15 +19,15 @@
  *   1. wrapHandler (request id + koi bhi throw => sanitized JSON), rate limit, body/attachment checks
  *   2. router.route()  -> blocked / ask_upload / ask_clarification ho to seedha jawab (LLM call nahi)
  *   3. official facts chahiye to verifiedLookup()
- *   4. Gemini -> Groq -> OpenRouter -> OpenAI (jiski key set hai, circuit breaker ke saath);
+ *   4. Providers (providers.PRIORITY order: Gemini, Groq, baaki, OpenRouter, OpenAI; jiski key ho, circuit breaker ke saath);
  *      har provider ke andar keys ek ke baad ek (limit/quota par agli key); tool result checkedRun() se guzarta hai
  *   5. reply ke numbers/claims verify; fail ho to ek correction retry, phir safe fallback
  *   6. saare providers fail hon par bhi inputs poore hon to calculator ka result seedha dikhta hai
  *
  * Vercel env (sab optional; jiski key ho wahi provider chalega):
- *   GEMINI_API_KEY, GEMINI_API_KEY_1..10, GEMINI_API_KEYS=k1,k2   (yahi tareeka baaki providers ka bhi)
- *   OPENAI_API_KEY..., GROQ_API_KEY..., OPENROUTER_API_KEY...
- *   GEMINI_MODEL, GEMINI_SEARCH_MODEL, OPENAI_MODEL, GROQ_MODEL, OPENROUTER_MODEL, OPENROUTER_VISION_MODEL
+ *   Keys: GEMINI_API_KEY, GROQ_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, SAMBANOVA_API_KEY ... (_1.._10, ya ..._KEYS=k1,k2)
+ *         ya ek hi AI_KEYS=key1,key2,deepseek:key3  ya koi bhi env jiska naam KEY/KEYS par khatam ho
+ *   Model: GEMINI_MODEL, GEMINI_SEARCH_MODEL, OPENAI_MODEL, GROQ_MODEL, OPENROUTER_MODEL, OPENROUTER_VISION_MODEL, <NAAM>_MODEL
  *   DEBUG_ERRORS=1 (sirf temporary debugging ke liye)
  */
 
@@ -35,6 +36,7 @@ const eh = require('../lib/error-handler');
 const router = require('../lib/intent-router');
 const validator = require('../lib/finance-validator');
 const keyPool = require('../lib/key-pool');
+const providers = require('../lib/providers');
 const knowledge = require('../lib/knowledge-base');
 const alerts = require('../lib/alert');
 const stats = require('../lib/stats');
@@ -112,14 +114,9 @@ const DIRECT_ACTIONS = new Set(['blocked', 'ask_upload', 'ask_clarification']);
 // Lagataar fail hone wala provider thodi der ke liye skip hota hai (per warm instance)
 const breaker = eh.createCircuitBreaker({ failureThreshold: 5, cooldownMs: 20000 });
 
-/* ---------- API key pools (har provider ki kai keys) ---------- */
+/* ---------- API key pools (har provider ki kai keys; lib/providers.js se) ---------- */
 
-const POOLS = {
-  openai: keyPool.createKeyPool('OPENAI_API_KEY'),
-  groq: keyPool.createKeyPool('GROQ_API_KEY'),
-  gemini: keyPool.createKeyPool('GEMINI_API_KEY'),
-  openrouter: keyPool.createKeyPool('OPENROUTER_API_KEY')
-};
+const POOLS = providers.makePools();
 
 // Keys ke saath chalata hai; key kharab ya limit par ho to aapko Gmail alert (throttle ke saath) jaata hai
 const viaKeys = (pool, name, fn) => keyPool.withKeys(pool, name, fn, {
@@ -341,9 +338,9 @@ async function post(name, url, headers, body, deadline, timeout = TIMEOUT, fast 
 const readJson = (name, r, deadline) =>
   eh.withTimeout(r.json(), Math.max(1500, Math.min(TIMEOUT, deadline - Date.now())), name + ' body');
 
-/* ---------- OpenAI / Groq / OpenRouter (OpenAI-compatible) ---------- */
+/* ---------- OpenAI / Groq / OpenRouter / baaki (OpenAI-compatible) ---------- */
 
-// allowPdf: sirf OpenAI ke liye (PDF 'file' part); Groq/OpenRouter mein sirf photo jaati hai
+// allowPdf: sirf OpenAI ke liye (PDF 'file' part); baaki mein sirf photo jaati hai
 function toOpenAI(m, allowPdf = false) {
   const text = m.role === 'user' ? shield(m.content) : m.content;
   const files = (m.attachments || []).filter(a =>
@@ -463,6 +460,17 @@ const askOpenRouter = (messages, opts) => viaKeys(POOLS.openrouter, 'OpenRouter'
   opts
 }));
 
+// Baaki sab OpenAI-compatible providers (SambaNova, Cerebras, Mistral, DeepSeek, Together, xAI, custom ...)
+const askCompat = def => (messages, opts) => viaKeys(POOLS[def.name], def.label, slot => openaiChat({
+  name: def.label,
+  url: providers.urlOf(def),
+  key: slot.key,
+  fast: slot.fast,
+  model: providers.modelOf(def),
+  messages,
+  opts
+}));
+
 /* ---------- Gemini ---------- */
 
 const GEMINI_URL = model =>
@@ -569,15 +577,16 @@ async function askGemini(messages, opts) {
 }
 
 // media: false = sirf text, 'image' = photo chalegi (PDF nahi), 'all' = photo + PDF
-// Order = priority: Gemini pehle (kai keys rotate hoti hain), phir Groq, OpenRouter, aakhir mein OpenAI (paid).
-const ALL = [
-  { name: 'gemini', media: 'all', run: askGemini },
-  { name: 'groq', media: false, run: askGroq },
-  { name: 'openrouter', media: 'image', run: askOpenRouter },
-  { name: 'openai', media: 'all', run: askOpenAI }
-];
+// Order = providers.PRIORITY: Gemini, Groq, baaki, aakhir mein OpenRouter aur OpenAI (paid).
+const RUN = { gemini: askGemini, groq: askGroq, openrouter: askOpenRouter, openai: askOpenAI };
+const ALL = providers.PRIORITY.map(def => ({
+  name: def.name,
+  media: def.media,
+  run: RUN[def.name] || askCompat(def)
+}));
 
-const hasKey = p => POOLS[p.name].size() > 0;
+// Key ho aur (OpenAI-compatible ho to) url + model bhi tay ho
+const hasKey = p => POOLS[p.name].size() > 0 && providers.configured(p.name);
 
 /* ---------- verified finance info (RBI/tax/schemes) ---------- */
 
