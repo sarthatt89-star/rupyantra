@@ -19,7 +19,7 @@
 
 const crypto = require('node:crypto');
 const eh = require('../lib/error-handler');
-const keyPool = require('../lib/key-pool');
+const providers = require('../lib/providers');
 const alerts = require('../lib/alert');
 const stats = require('../lib/stats');
 const commands = require('../lib/mail-commands');
@@ -56,9 +56,11 @@ function evaluate(body, env = process.env) {
   return { ok: true, command };
 }
 
+// Har provider ki keys ki ginti (sirf ginti, keys kabhi nahi)
 function poolSummaries() {
+  const pools = providers.makePools(process.env);
   const out = {};
-  for (const p of ['gemini', 'groq', 'openrouter', 'openai']) out[p] = keyPool.createKeyPool(p.toUpperCase() + '_API_KEY').summary();
+  for (const p of providers.NAMES) out[p] = pools[p].summary();
   return out;
 }
 
