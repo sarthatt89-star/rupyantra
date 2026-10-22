@@ -11,6 +11,22 @@
     "api/admin/auth.js": {
       "maxDuration": 15,
       "includeFiles": "lib/**"
+    },
+    "api/admin/chat.js": {
+      "maxDuration": 60,
+      "includeFiles": "lib/**"
+    },
+    "api/admin/status.js": {
+      "maxDuration": 30,
+      "includeFiles": "lib/**"
+    },
+    "api/admin/glossary.js": {
+      "maxDuration": 15,
+      "includeFiles": "lib/**"
+    },
+    "api/admin/report.js": {
+      "maxDuration": 15,
+      "includeFiles": "lib/**"
     }
   },
   "rewrites": [
