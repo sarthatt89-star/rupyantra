@@ -74,7 +74,6 @@ h2::before{content:"## ";color:var(--dim)}
     <nav class="tabs" role="tablist">
       <button class="on" data-t="chat" role="tab">chat</button>
       <button data-t="status" role="tab">status</button>
-      <button data-t="route" role="tab">ai-routing</button>
       <button data-t="gloss" role="tab">glossary</button>
       <button data-t="rep" role="tab">sawal-report</button>
       <button class="warn btn" id="logoutBtn" type="button" style="margin-left:auto">logout</button>
@@ -94,7 +93,6 @@ h2::before{content:"## ";color:var(--dim)}
         <div id="statusMsg" class="msg" role="status"></div>
         <div id="report"></div>
       </div>
-      <div class="pane" id="p-route"><p class="small">Sawal ke type ke hisaab se AI ka order. Badalne ke liye Vercel env <b>AI_ROUTING</b> (jaise <b>calc=groq,gemini; chat=cerebras</b>).</p><div id="routeBox"></div></div>
       <div class="pane" id="p-gloss">
         <p class="small">Yahan jo daalenge wo public chat mein us term ke poochhne par jawab banega.</p>
         <input id="gTerm" maxlength="60" placeholder="term (jaise SIP)" style="font-size:14px">
@@ -182,7 +180,7 @@ h2::before{content:"## ";color:var(--dim)}
   $('logoutBtn').addEventListener('click', function () { postJson(AUTH + 'logout').then(function () { location.reload(); }); });
 
   /* ---------- terminal chat ---------- */
-  var QUICK = ['/status', 'routing kaisa chal raha hai?', 'kya kharab hai?', 'keys ka haal', 'aaj ki errors', 'architecture samjhao', 'kya badla/joda gaya?', 'sabse zaroori fix kya hai?'];
+  var QUICK = ['/status', 'kya kharab hai?', 'keys ka haal', 'aaj ki errors', 'architecture samjhao', 'kya badla/joda gaya?', 'sabse zaroori fix kya hai?'];
   QUICK.forEach(function (q) {
     var b = document.createElement('button'); b.type = 'button'; b.textContent = q;
     b.addEventListener('click', function () { runCmd(q); });
@@ -268,31 +266,8 @@ h2::before{content:"## ";color:var(--dim)}
     var errs = r.recentErrors || [];
     if (!errs.length) { var n = document.createElement('p'); n.className = 'small'; n.textContent = 'koi error record nahi.'; box.appendChild(n); }
     errs.forEach(function (e) { box.appendChild(row(e.type || '?', false, [e.t, e.code, e.provider].filter(Boolean).join(' | '))); });
-    renderRoute(r);
     var ts = document.createElement('p'); ts.className = 'small'; ts.textContent = 'checked: ' + (r.checkedAt || ''); box.appendChild(ts);
   }
-  var ROUTE_NOTE = {
-    media: 'photo / PDF', facts: 'rate, tax, scheme (verified)', calc: 'calculator wale sawal',
-    chat: 'concept / aam baatein', long: 'lamba text / file ka text'
-  };
-  function renderRoute(r) {
-    var box = $('routeBox'); box.textContent = '';
-    var rt = r.routing || {}; var picks = (r.today && r.today.picks) || {};
-    var keys = r.keys || {};
-    box.appendChild(row('AI_ROUTING override', rt.override ? true : null, rt.override ? 'laga hai' : 'nahi laga (default order)'));
-    Object.keys(rt.profiles || {}).forEach(function (cat) {
-      h2(box, cat + ' - ' + (ROUTE_NOTE[cat] || ''));
-      var live = rt.profiles[cat].filter(function (n) { return keys[n] && keys[n].total > 0; });
-      var line = document.createElement('div'); line.className = 'ln ai';
-      line.textContent = live.length ? live.join(' > ') : 'koi provider (key) nahi';
-      box.appendChild(line);
-      box.appendChild(row('aaj is type ke jawab', true, String(picks[cat] || 0)));
-    });
-    var n = document.createElement('p'); n.className = 'small';
-    n.textContent = 'Sirf wahi provider dikhte hain jinki key lagi hai. Jiski saari keys limit par hon, wo apne aap peeche chala jata hai.';
-    box.appendChild(n);
-  }
-
   function loadStatus() {
     setMsg('statusMsg', 'scan chal raha hai...');
     return jfetch('/api/admin/status').then(function (j) {
