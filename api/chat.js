@@ -9,6 +9,7 @@
  *  - lib/finance-validator.js : tool result ka independent cross-check, claim check, injection/sensitive-data guard, safe log
  *  - lib/error-handler.js     : retry, timeout, circuit breaker, friendly errors, request id, safe logging
  *  - lib/providers.js         : saare AI providers ki list; koi bhi key (naam kuch bhi, ya AI_KEYS) apne aap pehchani jaati hai
+ *  - lib/provider-router.js   : sawal ke type ke hisaab se kaun sa provider pehle (media/facts/calc/chat/long)
  *  - lib/key-pool.js          : har provider ki kai API keys; ek ki limit khatam to agli key chalti hai
  *  - lib/system-prompt.js     : AI ke saare prompts / niyam
  *  - lib/knowledge-base.js    : aam concept sawalon ke tayyar jawab (AI/API ke bina)
@@ -37,6 +38,7 @@ const router = require('../lib/intent-router');
 const validator = require('../lib/finance-validator');
 const keyPool = require('../lib/key-pool');
 const providers = require('../lib/providers');
+const providerRouter = require('../lib/provider-router');
 const knowledge = require('../lib/knowledge-base');
 const alerts = require('../lib/alert');
 const stats = require('../lib/stats');
@@ -1205,7 +1207,9 @@ async function handler(req, res, meta) {
 
   const open = new Set(eligible.filter(p => breaker.isOpen(p.name)).map(p => p.name));
   const live = eligible.filter(p => !open.has(p.name));
-  const tryList = live.length ? live : eligible; // sab band hon to bhi aakhri koshish
+  // Sawal ke type (media/facts/calc/chat/long) ke hisaab se provider ka order (lib/provider-router.js)
+  const routed = providerRouter.order(live.length ? live : eligible, { route, hasMedia, text: last.content, pools: POOLS });
+  const tryList = routed.list; // sab band hon to bhi aakhri koshish
 
   for (const provider of tryList) {
     if (deadline - Date.now() < 3000) break;
@@ -1217,7 +1221,7 @@ async function handler(req, res, meta) {
       const out = open.has(provider.name) ? await run() : await breaker.exec(provider.name, run);
       monitor(env, out, trace);
       await stats.record(usageCounters(
-        { ok: 1, ['provider.' + provider.name + '.ok']: 1, ...(out.fallback ? { fallback: 1 } : {}) }, route, errs));
+        { ok: 1, ['provider.' + provider.name + '.ok']: 1, ['pick.' + routed.category]: 1, ...(out.fallback ? { fallback: 1 } : {}) }, route, errs));
 
       const payload = {
         reply: out.text,
