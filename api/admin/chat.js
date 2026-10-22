@@ -16,7 +16,7 @@ const eh = require('../../lib/error-handler');
 
 const MAX_QUESTION = 1000;
 const HOUR_MS = 3600 * 1000;
-const HOURLY_CAP = 60;
+const HOURLY_CAP = 30;
 let hits = [];
 
 function underCap(t = Date.now()) {
@@ -84,7 +84,7 @@ function createHandler(deps = {}) {
         const answer = await ask(message, report, body.history);
         return res.status(200).json({ ok: true, answer });
       } catch (_) {
-        return res.status(503).json({ ok: false, error: 'ai_unavailable', message: 'AI abhi available nahi. Koi AI key chalu nahi ya sab limit par hain.' });
+        return res.status(503).json({ ok: false, error: 'ai_unavailable', message: 'AI abhi available nahi. Thodi der baad try karein.' });
       }
     } catch (e) {
       eh.logError(e, { where: 'admin-chat-' + stage });
