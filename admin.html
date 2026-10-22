@@ -218,7 +218,8 @@ h2::before{content:"## ";color:var(--dim)}
         var el = line('ai', ''); typeOut(el, j.answer);
         history.push({ role: 'user', text: q }, { role: 'ai', text: j.answer });
       } else if (j.status === 401) { showLogin(); }
-      else line('err', (j.message || 'Jawab nahi mila.') + ' [HTTP ' + j.status + (j.error ? ' ' + j.error : '') + ']');
+      else line('err', (j.message || (j.status >= 500 ? 'Server crash hua (Vercel Logs dekho).' : 'Jawab nahi mila.')) +
+        (j.detail ? ' ' + j.detail : '') + ' [HTTP ' + j.status + (j.error ? ' ' + j.error : '') + ']');
     }).catch(function () { wait.remove(); line('err', 'Network ki dikkat.'); })
       .then(function () { $('chatBtn').disabled = false; $('chatIn').focus(); });
   }
@@ -296,7 +297,7 @@ h2::before{content:"## ";color:var(--dim)}
     setMsg('statusMsg', 'scan chal raha hai...');
     return jfetch('/api/admin/status').then(function (j) {
       if (j.status === 401) { showLogin(); return; }
-      if (j.status !== 200) { setMsg('statusMsg', 'Status nahi mila.', 'bad'); return; }
+      if (j.status !== 200) { setMsg('statusMsg', 'Status nahi mila. [HTTP ' + j.status + (j.error ? ' ' + j.error : '') + ']' + (j.detail ? ' ' + j.detail : ''), 'bad'); return; }
       setMsg('statusMsg', ''); render(j);
     }).catch(function () { setMsg('statusMsg', 'Network ki dikkat.', 'bad'); });
   }
