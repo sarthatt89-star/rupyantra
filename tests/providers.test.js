@@ -43,3 +43,11 @@ test('configured: model/url ke bina OpenAI-compatible provider nahi chalta', () 
   assert.equal(P.configured('custom', { CUSTOM_AI_URL: 'http://insecure', CUSTOM_AI_MODEL: 'm' }), false);
   assert.deepEqual(P.NAMES.slice(0, 4), ['gemini', 'groq', 'openrouter', 'openai']);
 });
+
+test('scan: provider ke naam wale env ki key dobara prefix se nahi pehchani jaati (DeepSeek ki sk- key OpenAI nahi banti)', () => {
+  const env = { OPENAI_API_KEY: 'sk-proj-aaaa', DEEPSEEK_API_KEY: 'sk-deepseekkey', MERI_KEY: 'sk-generickey' };
+  const pools = P.makePools(env);
+  assert.equal(pools.deepseek.size(), 1);
+  assert.equal(pools.openai.size(), 2); // OPENAI_API_KEY + generic MERI_KEY (bare sk- = OpenAI); DeepSeek wali nahi
+  assert.ok(!P.scanEnv(env).some(k => k.key === 'sk-deepseekkey' && k.provider === 'openai'));
+});
