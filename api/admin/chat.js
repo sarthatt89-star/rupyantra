@@ -2,7 +2,8 @@
 
 /*
  * Admin chat API (api/admin/chat.js)
- *   POST /api/admin/chat   body { message, history? }  -> login ke baad, report + knowledge par based jawab
+ *   POST /api/admin/chat              body { message, history? }  -> login ke baad, report + knowledge par based jawab
+ *   GET  /api/admin/chat?check=1      -> login ke baad: kaun si file load ho rahi hai, kaun si kharab (diagnosis)
  * Sirf admin. Koi badlaav nahi karta. Kuch save nahi hota.
  *
  * Bhaari modules (status, AI) login jaanch ke BAAD load hote hain. Isse agar koi file kharab ho to server chupchap crash nahi
@@ -40,14 +41,57 @@ function parseBody(body) {
   return body && typeof body === 'object' ? body : {};
 }
 
+function wantsCheck(req) {
+  try {
+    if (req.query && typeof req.query === 'object') return String(req.query.check || '') === '1';
+    return new URL(req.url || '', 'http://x').searchParams.get('check') === '1';
+  } catch (_) {
+    return false;
+  }
+}
+
+const firstLine = e => eh.sanitize(e && e.message ? String(e.message).split('\n')[0] : '', { maxLen: 160 });
+
 function createHandler(deps = {}) {
   let auth = deps.auth;
   let status = deps.status;
   let ask = deps.ask;
 
+  const getAuth = () => {
+    if (!auth) auth = createAdminAuth({ env: process.env, redis: upstash, mailer: createMailer() });
+    return auth;
+  };
+
+  // Har zaroori file ko alag load karke batata hai: "ok" ya wajah
+  async function diagnose(req, res) {
+    try {
+      const session = await getAuth().checkSession(parseCookie(req.headers && req.headers.cookie, COOKIE));
+      if (!session) return res.status(401).json({ ok: false, error: 'not_logged_in' });
+    } catch (e) {
+      eh.logError(e, { where: 'admin-chat-check' });
+      return res.status(500).json({ ok: false, error: 'auth_failed', detail: firstLine(e) });
+    }
+    const mods = {
+      'error-handler': () => require('../../lib/error-handler'),
+      'key-pool': () => require('../../lib/key-pool'),
+      'providers': () => require('../../lib/providers'),
+      'admin-knowledge': () => require('../../lib/admin-knowledge'),
+      'admin-status': () => require('../../lib/admin-status'),
+      'admin-chat': () => require('../../lib/admin-chat')
+    };
+    const results = {};
+    let ok = true;
+    for (const [name, load] of Object.entries(mods)) {
+      try { load(); results[name] = 'ok'; } catch (e) { ok = false; results[name] = firstLine(e) || 'load nahi hua'; }
+    }
+    return res.status(200).json({ ok, results });
+  }
+
   return async function adminChatHandler(req, res) {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('X-Content-Type-Options', 'nosniff');
+
+    if (req.method === 'GET' && wantsCheck(req)) return diagnose(req, res);
 
     if (req.method !== 'POST') {
       res.setHeader('Allow', 'POST');
@@ -56,9 +100,8 @@ function createHandler(deps = {}) {
 
     let stage = 'auth';
     try {
-      if (!auth) auth = createAdminAuth({ env: process.env, redis: upstash, mailer: createMailer() });
       const token = parseCookie(req.headers && req.headers.cookie, COOKIE);
-      const session = await auth.checkSession(token);
+      const session = await getAuth().checkSession(token);
       if (!session) return res.status(401).json({ ok: false, error: 'not_logged_in' });
       if (!sameOrigin(req)) return res.status(403).json({ ok: false, error: 'bad_origin' });
 
@@ -88,14 +131,13 @@ function createHandler(deps = {}) {
       }
     } catch (e) {
       eh.logError(e, { where: 'admin-chat-' + stage });
-      const detail = eh.sanitize(e && e.message ? String(e.message).split('\n')[0] : '', { maxLen: 160 });
       const loadFail = stage === 'load';
       return res.status(500).json({
         ok: false,
         error: loadFail ? 'load_failed' : 'server_error',
         message: loadFail ? 'Server ka code load nahi hua.' : 'Kuch gadbad ho gayi (' + stage + ').',
         // sirf logged-in admin tak pahunchta hai (auth ke baad ke stage)
-        detail: stage === 'auth' ? undefined : detail
+        detail: stage === 'auth' ? undefined : firstLine(e)
       });
     }
   };
