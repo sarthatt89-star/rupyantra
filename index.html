@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="index,follow">
-<meta name="theme-color" content="#B7EAEA">
+<meta name="theme-color" content="#0F9D6E">
 <title>Rupeyantra AI – Free Finance Assistant for EMI, SIP & Budget</title>
 <meta name="description" content="Rupeyantra AI se EMI, SIP, loan, budget aur bachat ke sawal Hinglish mein poochhein. Financial concepts samjhein aur calculations mein madad paayein.">
 <!-- IMPORTANT: canonical aur schema URLs apne EXACT live domain se match karein (abhi: rupyantra-psi.vercel.app). -->
@@ -31,38 +31,40 @@
 }
 </script>
 <style>
-:root{color-scheme:light dark;--text:#1b1b2f;--muted:#6f6c85;--line:#e3ddf3;--card:#fff;--bot:#fff;--g1:#0E9AA7;--g2:#3B5BDB;--g3:#7C3AED;--sky:linear-gradient(180deg,#B7EAEA 0%,#D9CCFF 16%,#F5F0FF 34%,#fff 58%);--bg:#fff}
-@media(prefers-color-scheme:dark){:root{--text:#EEEAFB;--muted:#A19DBB;--line:#34304F;--card:#1B1930;--bot:#1B1930;--sky:linear-gradient(180deg,#14434C 0%,#2A2158 20%,#17142B 45%,#100F1E 70%);--bg:#100F1E;color-scheme:dark}}
+:root{color-scheme:light dark;--bg:#F6FAF8;--text:#14282B;--muted:#6B7C80;--line:#DDE7E3;--card:#fff;--acc:#0F9D6E;--acc2:#0B7D58;--tint:rgba(15,157,110,.1)}
+@media(prefers-color-scheme:dark){:root{--bg:#0D1618;--text:#E6EFEC;--muted:#8DA19D;--line:#233436;--card:#142123;--acc:#2BC58F;--acc2:#1FA876;--tint:rgba(43,197,143,.14)}}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font-family:"Outfit",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 button,textarea{font:inherit}
 button{touch-action:manipulation}
-#app{height:100%;min-height:0;display:flex;flex-direction:column;background:var(--sky);padding-top:env(safe-area-inset-top,0px)}
-.top{display:flex;justify-content:flex-end;align-items:center;padding:6px 12px;gap:4px}
-.ib{width:40px;height:40px;border:0;background:none;color:var(--text);display:grid;place-items:center;border-radius:14px;cursor:pointer}
-.ib:hover{background:rgba(120,100,200,.12)}
+#app{height:100%;min-height:0;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.top{display:flex;justify-content:flex-end;align-items:center;padding:6px 12px}
+.ib{width:40px;height:40px;border:0;background:none;color:var(--text);display:grid;place-items:center;border-radius:12px;cursor:pointer}
+.ib:hover{background:var(--tint)}
 .ib svg,.circle svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-:focus-visible{outline:3px solid var(--g3);outline-offset:2px}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
 #body{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center;width:100%;max-width:680px;margin:0 auto;padding:0 16px}
-h1{font-size:clamp(22px,6vw,30px);line-height:1.2;font-weight:600;text-align:center;margin:0 0 20px;letter-spacing:-.01em;background:linear-gradient(100deg,var(--g1),var(--g2) 55%,var(--g3));-webkit-background-clip:text;background-clip:text;color:transparent}
-.intro{font-size:14px;line-height:1.5;color:var(--muted);text-align:center;margin:-10px 0 18px}
+h1{font-size:clamp(22px,6vw,30px);line-height:1.25;font-weight:600;text-align:center;margin:0 0 8px;letter-spacing:-.01em}
+h1 span{color:var(--acc)}
+.intro{font-size:15px;line-height:1.5;color:var(--muted);text-align:center;margin:0 0 22px}
 #msgs{display:none;flex:1;min-height:0;overflow:auto;padding:8px 2px 14px;flex-direction:column;gap:12px;overscroll-behavior:contain}
-.msg{max-width:90%;padding:10px 14px;border-radius:18px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.5}
-.msg.bot{background:var(--bot);border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:6px}
-.msg.user{background:linear-gradient(100deg,var(--g2),var(--g3));color:#fff;align-self:flex-end;border-bottom-right-radius:6px}
+.msg{max-width:90%;padding:10px 14px;border-radius:16px;white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px;line-height:1.55}
+.msg.bot{background:var(--card);border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:5px}
+.msg.user{background:var(--acc);color:#fff;align-self:flex-end;border-bottom-right-radius:5px}
 .msg.user img{display:block;max-width:100%;max-height:200px;border-radius:12px;margin:2px 0 6px}
 .msg.user .fl{font-size:13px;opacity:.95;margin-bottom:4px;overflow-wrap:anywhere}
 .msg.err{border-color:#e5484d;font-size:13px}
 .msg .tools{display:flex;gap:4px;margin-top:7px;flex-wrap:wrap}
 .tools button{border:0;background:none;color:var(--muted);font:500 12.5px "Outfit",system-ui,sans-serif;cursor:pointer;padding:4px 8px;border-radius:8px}
-.tools button:hover{background:rgba(124,58,237,.1);color:var(--text)}
+.tools button:hover{background:var(--tint);color:var(--text)}
 .msg .retry{color:#d04444}
-.vf{font-size:12px;color:var(--g1);margin-top:6px}
+.vf{font-size:12px;color:var(--acc);margin-top:6px}
 .opts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .opts button{border:1px solid var(--line);background:var(--card);color:var(--text);font:500 13px "Outfit",system-ui,sans-serif;padding:6px 12px;border-radius:999px;cursor:pointer}
-.opts button:hover{background:rgba(124,58,237,.1)}
-.card{position:relative;background:var(--card);border:1.5px solid var(--line);border-radius:22px;padding:12px 12px 8px 16px;min-height:112px;display:flex;flex-direction:column;box-shadow:0 8px 30px -14px rgba(90,70,200,.25)}
+.opts button:hover{background:var(--tint)}
+.card{position:relative;background:var(--card);border:1.5px solid var(--line);border-radius:20px;padding:12px 12px 8px 16px;min-height:108px;display:flex;flex-direction:column}
+.card:focus-within{border-color:var(--acc)}
 textarea:focus,textarea:focus-visible{outline:none;box-shadow:none}
 /* 16px: iPhone par focus karte hi page zoom na ho */
 textarea{flex:1;border:0;outline:0;resize:none;background:transparent;color:var(--text);font:400 16px/1.5 "Outfit",system-ui,sans-serif;min-height:48px;max-height:200px;padding:0}
@@ -71,25 +73,25 @@ textarea::placeholder{color:var(--muted)}
 .circle{width:38px;height:38px;border-radius:50%;border:0;display:grid;place-items:center;cursor:pointer;flex:none}
 .circle svg{width:20px;height:20px}
 #mic{background:none;color:var(--text)}
-#mic.on{background:rgba(124,58,237,.15);color:var(--g3)}
-#send,#stop{background:linear-gradient(100deg,var(--g2),var(--g3));color:#fff}
+#mic.on{background:var(--tint);color:var(--acc)}
+#send,#stop{background:var(--acc);color:#fff}
 #send{display:none}
 #stop{display:none;background:#b4232d}
 #send:disabled,#stop:disabled{opacity:.5}
 #plusWrap{position:relative;margin-right:auto}
 #plus{background:none;color:var(--text)}
-#plus:hover,#plus.on{background:rgba(124,58,237,.12)}
+#plus:hover,#plus.on{background:var(--tint)}
 .has-text #send{display:grid}.has-text #mic{display:none}
 .busy #stop{display:grid}.busy #send{display:none}.busy #mic{display:none}
-.menu{display:none;position:absolute;left:0;bottom:calc(100% + 8px);min-width:150px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:6px;box-shadow:0 10px 30px -10px rgba(60,40,140,.35);z-index:10}
+.menu{display:none;position:absolute;left:0;bottom:calc(100% + 8px);min-width:150px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px;box-shadow:0 10px 30px -12px rgba(0,0,0,.3);z-index:10}
 .menu.open{display:block}
 .menu button{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;color:var(--text);font:500 15px "Outfit",system-ui,sans-serif;padding:10px 12px;border-radius:10px;cursor:pointer;text-align:left}
-.menu button:hover{background:rgba(124,58,237,.1)}
+.menu button:hover{background:var(--tint)}
 .menu svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
 input[type=file]{display:none}
 .chips{display:flex;flex-wrap:wrap;gap:8px;padding:0 0 8px}
 .chips:empty{display:none}
-.chip{display:flex;align-items:center;gap:6px;max-width:100%;background:rgba(124,58,237,.1);border:1px solid var(--line);border-radius:12px;padding:4px 6px 4px 4px;font-size:13px}
+.chip{display:flex;align-items:center;gap:6px;max-width:100%;background:var(--tint);border:1px solid var(--line);border-radius:12px;padding:4px 6px 4px 4px;font-size:13px}
 .chip img{width:36px;height:36px;object-fit:cover;border-radius:8px;display:block}
 .chip .ic{width:36px;height:36px;display:grid;place-items:center;font-size:18px}
 .chip .nm{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -97,7 +99,7 @@ input[type=file]{display:none}
 .note{font-size:13px;color:#e5484d;padding:0 6px 8px;display:none}
 .note.show{display:block}
 .chatting #body{justify-content:flex-start}
-.chatting h1,.chatting .intro{display:none}
+.chatting h1,.chatting .intro,.chatting .sugg{display:none}
 .chatting #msgs{display:flex}
 .chatting .card{min-height:0;margin-bottom:calc(10px + env(safe-area-inset-bottom,0px));flex-direction:row;flex-wrap:wrap;align-items:flex-end;padding:6px;gap:4px}
 .chatting .chips{order:-1;flex-basis:100%;padding:4px 6px}
@@ -108,15 +110,46 @@ input[type=file]{display:none}
 .chatting #send,.chatting #stop{order:3}
 .sugg{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:0 0 18px}
 .sugg button{border:1px solid var(--line);background:var(--card);color:var(--text);font:500 13.5px "Outfit",system-ui,sans-serif;padding:8px 14px;border-radius:999px;cursor:pointer;text-align:left;line-height:1.3}
-.sugg button:hover{background:rgba(124,58,237,.1)}
-.chatting .sugg{display:none}
+.sugg button:hover{background:var(--tint);border-color:var(--acc)}
 .thinking{background:none!important;border:0!important;padding:4px 0!important;display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
-.thinking .dot{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--g1),var(--g3));color:#fff;display:grid;place-items:center;font-size:14px;font-weight:700;animation:pulse 1.4s ease-in-out infinite}
-.thinking .t{background:linear-gradient(100deg,var(--g3),var(--g1),var(--g2),var(--g3));background-size:300% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 2.2s linear infinite}
+.thinking .dot{width:28px;height:28px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font-size:14px;font-weight:700;animation:pulse 1.4s ease-in-out infinite}
+.thinking .t{color:var(--muted)}
 .legal{max-width:640px;margin:0 auto;padding:0 16px 8px;text-align:center;color:var(--muted);font-size:11px;line-height:1.4}
-@keyframes shine{to{background-position:-300% 0}}@keyframes pulse{50%{transform:scale(.85);opacity:.7}}
+@keyframes pulse{50%{transform:scale(.85);opacity:.7}}
+/* input neeche, ek line ka pill */
+#body{justify-content:flex-end}
+.chatting #body{justify-content:flex-start}
+.card{min-height:0;border-radius:28px;margin-bottom:10px;flex-direction:row;flex-wrap:wrap;align-items:flex-end;padding:6px;gap:4px}
+.chips{order:-1;flex-basis:100%;padding:4px 6px}
+.row{display:contents}
+#plusWrap{order:0;margin-right:0}
+textarea{order:1;flex:1;min-width:0;min-height:24px;padding:8px 0}
+#mic{order:2}
+#send,#stop{order:3}
+#send{display:grid;opacity:.4}
+.has-text #send{opacity:1}
+.has-text #mic{display:grid}
+.busy #send,.busy #mic{display:none}
+.chatting .card{margin-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+/* attach menu: gol icons */
+.menu{min-width:190px;padding:8px;border-radius:20px}
+.menu button{gap:14px;padding:6px 10px}
+.menu svg{width:44px;height:44px;padding:11px;border-radius:50%;background:var(--tint)}
 @media(max-width:420px){.top{padding:4px 8px}#body{padding:0 10px}.msg{max-width:94%;font-size:14.5px}.card{padding-left:12px}.sugg button{font-size:12.5px;padding:8px 11px}}
-@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}.thinking .dot,.thinking .t{animation:none}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}.thinking .dot{animation:none}}
+/* smooth click animation */
+button{transition:transform .16s cubic-bezier(.3,.7,.4,1),background-color .22s ease,color .22s ease,opacity .22s ease,border-color .22s ease,box-shadow .22s ease;-webkit-tap-highlight-color:transparent}
+button:active:not(:disabled){transform:scale(.9)}
+.sugg button:active,.opts button:active,.menu button:active,.tools button:active{transform:scale(.96)}
+.card{transition:border-color .25s ease,box-shadow .25s ease}
+.card:focus-within{box-shadow:0 0 0 4px var(--tint)}
+.menu.open{animation:pop .18s cubic-bezier(.2,.8,.3,1);transform-origin:bottom left}
+.msg{animation:rise .28s ease both}
+#mic.on{animation:micp 1.2s ease-in-out infinite}
+@keyframes pop{from{opacity:0;transform:translateY(8px) scale(.94)}to{opacity:1;transform:none}}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes micp{0%,100%{box-shadow:0 0 0 0 var(--tint)}50%{box-shadow:0 0 0 9px transparent}}
+@media(prefers-reduced-motion:reduce){button:active:not(:disabled){transform:none}.msg,.menu.open,#mic.on{animation:none}}
 </style>
 </head>
 <body>
@@ -127,23 +160,21 @@ input[type=file]{display:none}
     </button>
   </div>
   <main id="body">
-    <h1>Rupeyantra AI: Aapka Finance Saathi</h1>
-    <p class="intro">EMI, SIP, loan, budget aur bachat ke sawal aasaan Hinglish mein poochhein.</p>
-    <div class="sugg" id="sugg"></div>
+    <div id="sugg" hidden></div>
     <div id="msgs" aria-live="polite" aria-relevant="additions text"></div>
     <div id="dock">
       <div id="note" class="note" role="status" aria-live="polite"></div>
       <form class="card" id="form">
         <div class="chips" id="chips"></div>
-        <textarea id="inp" rows="1" maxlength="4000" placeholder="Aapka agla sawal kya hai?" aria-label="Apna sawal" autocomplete="off"></textarea>
+        <textarea id="inp" rows="1" maxlength="4000" placeholder="Kuch bhi poochho…" aria-label="Apna sawal" autocomplete="off"></textarea>
         <div class="row">
           <div id="plusWrap">
             <button type="button" class="circle" id="plus" aria-label="Photo ya file jodo" aria-haspopup="true" aria-expanded="false">
               <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
             </button>
             <div class="menu" id="menu" role="menu">
-              <button type="button" id="pickPhoto" role="menuitem"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 9"/></svg>Photo</button>
-              <button type="button" id="pickFile" role="menuitem"><svg viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>File</button>
+              <button type="button" id="pickPhoto" role="menuitem"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 9"/></svg>Photos</button>
+              <button type="button" id="pickFile" role="menuitem"><svg viewBox="0 0 24 24"><path d="M21 11l-8.5 8.5a5 5 0 0 1-7-7L14 4a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4L15 7"/></svg>Files</button>
             </div>
           </div>
           <button type="button" class="circle" id="mic" aria-label="Bolkar poochho" title="Bolkar poochho"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></svg></button>
@@ -155,7 +186,7 @@ input[type=file]{display:none}
       <input type="file" id="fileIn" accept=".pdf,.txt,.csv,.tsv,.json,.md,.log,application/pdf,text/plain" multiple>
     </div>
   </main>
-  <footer class="legal">Rupeyantra AI general information deta hai, personal financial advice nahi. Investment decisions se pehle apni research karein aur zaroorat par SEBI-registered adviser se salah lein.</footer>
+  <footer class="legal">General jaankari, financial advice nahi.</footer>
 </div>
 <script>
 'use strict';
@@ -441,7 +472,7 @@ SUGG.forEach(t=>{
 
 /* bolkar poochho (voice) */
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-if(!SR){mic.style.display='none'}
+if(!SR){mic.onclick=()=>warn('Is browser mein mic support nahi hai. Chrome use karein.')}
 else{
   mic.onclick=()=>{
     if(rec){try{rec.stop()}catch(_){}return}
