@@ -31,8 +31,8 @@
 }
 </script>
 <style>
-:root{color-scheme:light dark;--bg:#F6FAF8;--text:#14282B;--muted:#6B7C80;--line:#DDE7E3;--card:#fff;--acc:#0F9D6E;--acc2:#0B7D58;--tint:rgba(15,157,110,.1)}
-@media(prefers-color-scheme:dark){:root{--bg:#0D1618;--text:#E6EFEC;--muted:#8DA19D;--line:#233436;--card:#142123;--acc:#2BC58F;--acc2:#1FA876;--tint:rgba(43,197,143,.14)}}
+:root{color-scheme:light dark;--bg:#F6FAF8;--text:#14282B;--muted:#6B7C80;--line:#DDE7E3;--card:#fff;--acc:#0F9D6E;--acc2:#0B7D58;--tint:rgba(15,157,110,.1);--warm:#C98A14}
+@media(prefers-color-scheme:dark){:root{--bg:#0D1618;--text:#E6EFEC;--muted:#8DA19D;--line:#233436;--card:#142123;--acc:#2BC58F;--acc2:#1FA876;--tint:rgba(43,197,143,.14);--warm:#E5B04A}}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{background:var(--bg);color:var(--text);font-family:"Outfit",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -58,6 +58,8 @@ h1 span{color:var(--acc)}
 .msg .tools{display:flex;gap:4px;margin-top:7px;flex-wrap:wrap}
 .tools button{border:0;background:none;color:var(--muted);font:500 12.5px "Outfit",system-ui,sans-serif;cursor:pointer;padding:4px 8px;border-radius:8px}
 .tools button:hover{background:var(--tint);color:var(--text)}
+.tools button:disabled{cursor:default;opacity:.6}
+.tools .fbd{font-size:12.5px;color:var(--acc);padding:4px 8px}
 .msg .retry{color:#d04444}
 .vf{font-size:12px;color:var(--acc);margin-top:6px}
 .opts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
@@ -150,6 +152,35 @@ button:active:not(:disabled){transform:scale(.9)}
 @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @keyframes micp{0%,100%{box-shadow:0 0 0 0 var(--tint)}50%{box-shadow:0 0 0 9px transparent}}
 @media(prefers-reduced-motion:reduce){button:active:not(:disabled){transform:none}.msg,.menu.open,#mic.on{animation:none}}
+/* + dabane par x ban jaye */
+#plus svg{transition:transform .28s cubic-bezier(.3,.7,.4,1)}
+#plus.on svg{transform:rotate(45deg)}
+/* jawab ka naya rup: tables, bade numbers, PDF/CSV */
+.msg .num{font-weight:600;color:var(--acc)}
+.msg strong{font-weight:600}
+.tw{overflow-x:auto;margin:8px 0;white-space:normal;border:1px solid var(--line);border-radius:12px}
+.tw table{border-collapse:collapse;width:100%;font-size:13.5px}
+.tw th,.tw td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap}
+.tw th{background:var(--tint);font-weight:600}
+.tw tr:last-child td{border-bottom:0}
+/* hisaab ka card + slider */
+.calc{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--bg);white-space:normal}
+.calc .ct{font-size:12.5px;color:var(--muted);margin-bottom:8px}
+.cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.cd{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 9px;min-width:0}
+.cd small{display:block;font-size:11.5px;color:var(--muted);line-height:1.3}
+.cd b{display:block;margin-top:2px;font-size:15px;font-weight:600;color:var(--acc);overflow-wrap:anywhere}
+.cd.main{border-color:var(--acc);background:var(--tint)}
+.bar{display:flex;height:8px;border-radius:99px;overflow:hidden;background:var(--line);margin:10px 0 4px}
+.bar i{display:block;height:100%;background:var(--acc);transition:width .25s ease}
+.bar i+i{background:var(--warm)}
+.lg{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--muted)}
+.sl{margin-top:10px}
+.sl .lr{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:13px}
+.sl .lr b{font-weight:600;color:var(--text)}
+.sl input[type=range]{width:100%;margin:6px 0 0;accent-color:var(--acc);height:28px;background:none;touch-action:pan-y}
+@media(max-width:420px){.cd b{font-size:13.5px}.cd small{font-size:11px}}
+@media print{body *{visibility:hidden}.print-me,.print-me *{visibility:visible}.print-me{position:absolute;left:0;top:0;width:100%;max-width:none;border:0;color:#000;background:#fff;animation:none}.print-me .tools,.print-me .opts,.print-me .vf,.print-me .sl{display:none}html,body,#app,#body,#msgs{height:auto!important;overflow:visible!important}.print-me::before{content:"Rupeyantra AI";display:block;font-weight:700;margin-bottom:8px}}
 </style>
 </head>
 <body>
@@ -199,7 +230,7 @@ const API='/api/chat';
 let convo=[],pending=[],log=[],gen=0,controller=null,activeBot=null,busy=false,noteTimer=null,rec=null,stopped=false,lastUserEl=null,lastDraft='';
 // Limits backend (api/chat.js) se match karti hain: content 12000, base64 total 3.5M, Vercel body 4.5 MB
 const MAX_FILES=3,MAX_B64=2700000,MAX_TOTAL_B64=3300000,MAX_PDF=2000000,MAX_CONTENT=12000,TEXT_PER_FILE=8000,MAX_TEXT_FILE=500000,REQUEST_TIMEOUT=55000;
-const KEY='rupeyantra_chat_v2',DB_NAME='rupeyantra_ai_files',DB_STORE='sessions';
+const KEY='rupeyantra_chat_v2',DB_NAME='rupeyantra_ai_files',DB_STORE='sessions',FB_KEY='rupeyantra_feedback_v1';
 const TEXT_EXT=/\.(txt|csv|tsv|json|md|log)$/i;
 const FILE_BLOCK=/\[FILE: [^\]\n]{0,120}\][\s\S]*?(?:\[FILE END\]|$)/g; // text file ka content phone mein save nahi hota
 const SUGG=['EMI kaise nikalte hain?','50 lakh ka home loan 8.5% par 20 saal ke liye EMI kitni hogi?','Mahine ki 5000 ki SIP 12% par 10 saal mein kitni banegi?','Mahine ka budget kaise banaye?'];
@@ -262,7 +293,7 @@ async function copyText(t,btn){
   let ok=false;try{await navigator.clipboard.writeText(t);ok=true}catch(e){const ta=document.createElement('textarea');ta.value=t;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{ok=document.execCommand('copy')}catch(_){}ta.remove()}
   btn.textContent=ok?'Copy ho gaya ✓':'Copy nahi hua';setTimeout(()=>{if(btn.isConnected)btn.textContent='Copy'},1800);
 }
-// extra (optional): { verified: bool, options: [text, ...] } backend ke reply se aata hai
+// extra (optional): { verified: bool, options: [text, ...], calc: {type,a,r,y}, q: sawal } 
 function botMsg(bot,text,animate,extra){
   bot.classList.remove('thinking','err');bot.innerHTML='';
   const span=document.createElement('span');bot.appendChild(span);
@@ -271,7 +302,10 @@ function botMsg(bot,text,animate,extra){
   if(navigator.share){const sb=document.createElement('button');sb.type='button';sb.textContent='Share';sb.onclick=()=>navigator.share({text:text+'\n\n- Rupeyantra AI'}).catch(()=>{});tools.appendChild(sb)}
   const finish=()=>{
     if(!bot.isConnected)return;
-    span.textContent=text;
+    renderRich(span,text);
+    if(extra&&extra.calc){try{bot.appendChild(buildCalc(extra.calc))}catch(_){}}
+    addExtra(tools,bot,span);
+    if(extra&&extra.q!==undefined)addFeedback(tools,extra.q,text);
     if(extra&&extra.verified){const v=document.createElement('div');v.className='vf';v.textContent='✓ Calculator se verified';bot.appendChild(v)}
     bot.appendChild(tools);
     if(extra&&Array.isArray(extra.options)&&extra.options.length){
@@ -296,6 +330,134 @@ function botMsg(bot,text,animate,extra){
     if(i>=text.length){clearInterval(timer);finish();return}
     span.textContent=text.slice(0,i);msgs.scrollTop=msgs.scrollHeight;
   },18);
+}
+
+/* rich jawab: table, bold, bade rupaye ke numbers (sirf dikhawat, connection nahi) */
+function numify(p,s){s.split(/(₹\s?[\d,]+(?:\.\d+)?(?:\s?(?:lakh|crore|Lakh|Crore|L|Cr)\b)?)/).forEach((t,i)=>{if(!t)return;if(i%2){const n=document.createElement('span');n.className='num';n.textContent=t;p.appendChild(n)}else p.appendChild(document.createTextNode(t))})}
+function inl(p,s){s.split(/(\*\*[^*\n]+\*\*)/).forEach(part=>{if(/^\*\*[^*]+\*\*$/.test(part)){const b=document.createElement('strong');numify(b,part.slice(2,-2));p.appendChild(b)}else numify(p,part)})}
+const isRow=l=>/^\s*\|.*\|\s*$/.test(l);
+const isSep=l=>/^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(l);
+const cells=l=>l.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
+function renderRich(el,text){
+  el.textContent='';const L=text.split('\n');let buf=[];
+  const flush=()=>{if(buf.length){const d=document.createElement('div');inl(d,buf.join('\n'));el.appendChild(d);buf=[]}};
+  for(let i=0;i<L.length;i++){
+    if(isRow(L[i])&&i+1<L.length&&isSep(L[i+1])){
+      flush();
+      const t=document.createElement('table'),th=document.createElement('thead'),tb=document.createElement('tbody'),hr=document.createElement('tr');
+      cells(L[i]).forEach(c=>{const x=document.createElement('th');inl(x,c);hr.appendChild(x)});th.appendChild(hr);
+      i+=2;
+      while(i<L.length&&isRow(L[i])){const r=document.createElement('tr');cells(L[i]).forEach(c=>{const x=document.createElement('td');inl(x,c);r.appendChild(x)});tb.appendChild(r);i++}
+      i--;t.appendChild(th);t.appendChild(tb);
+      const w=document.createElement('div');w.className='tw';w.appendChild(t);el.appendChild(w);
+    }else buf.push(L[i]);
+  }
+  flush();
+}
+function addExtra(tools,bot,span){
+  const mk=(t,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=t;b.onclick=fn;tools.appendChild(b)};
+  mk('PDF',()=>{
+    bot.classList.add('print-me');
+    addEventListener('afterprint',()=>bot.classList.remove('print-me'),{once:true});
+    window.print();
+  });
+  const tbl=span.querySelector('table');
+  if(tbl)mk('CSV',()=>{
+    const q=v=>'"'+v.replace(/"/g,'""')+'"';
+    const csv='\ufeff'+Array.from(tbl.rows).map(r=>Array.from(r.cells).map(c=>q(c.textContent)).join(',')).join('\r\n');
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='rupeyantra.csv';
+    document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  });
+}
+
+/* 👍/👎: vote phone mein save hota hai; /api/feedback ho to wahan bhi jaata hai (na ho to chup-chaap ignore) */
+function addFeedback(tools,q,a){
+  const wrap=document.createElement('span');wrap.style.display='contents';
+  const vote=v=>{
+    try{
+      const arr=JSON.parse(localStorage.getItem(FB_KEY)||'[]');
+      arr.push({v,q:String(q||'').replace(FILE_BLOCK,'').slice(0,300),a:String(a||'').slice(0,600),t:Date.now()});
+      localStorage.setItem(FB_KEY,JSON.stringify(arr.slice(-100)));
+    }catch(_){}
+    try{if(navigator.sendBeacon)navigator.sendBeacon('/api/feedback',new Blob([JSON.stringify({v,q:String(q||'').replace(FILE_BLOCK,'').slice(0,300),a:String(a||'').slice(0,600)})],{type:'application/json'}))}catch(_){}
+    wrap.textContent='';
+    const d=document.createElement('span');d.className='fbd';d.textContent=v>0?'Shukriya ✓':'Note kar liya ✓';wrap.appendChild(d);
+  };
+  [['👍','Sahi jawab',1],['👎','Galat jawab',-1]].forEach(([t,l,v])=>{
+    const b=document.createElement('button');b.type='button';b.textContent=t;b.setAttribute('aria-label',l);b.title=l;b.onclick=()=>vote(v);wrap.appendChild(b);
+  });
+  tools.appendChild(wrap);
+}
+
+/* hisaab ka card + slider: sawal se rakam, byaj aur saal nikalkar EMI/SIP khud calculate karta hai */
+const UNIT={lakh:1e5,lac:1e5,l:1e5,crore:1e7,cr:1e7,hazaar:1e3,hazar:1e3,thousand:1e3,k:1e3};
+function parseCalc(raw){
+  const t=String(raw||'').replace(FILE_BLOCK,' ').replace(/,/g,'');
+  const low=t.toLowerCase();
+  const isSip=/\bsip\b/.test(low);
+  const isEmi=!isSip&&(/\bemi\b|loan|लोन|कर्ज/.test(low));
+  if(!isSip&&!isEmi)return null;
+  let rest=low;
+  const rm=rest.match(/(\d+(?:\.\d+)?)\s*(?:%|percent|pratishat|प्रतिशत)/);
+  const ym=rest.match(/(\d+(?:\.\d+)?)\s*(saal|sal|year|years|yr|yrs|varsh|साल|mahine|mahina|month|months|महीने)/);
+  if(!rm||!ym)return null;
+  rest=rest.replace(rm[0],' ').replace(ym[0],' ');
+  const am=rest.match(/(\d+(?:\.\d+)?)\s*(lakh|lac|crore|cr|hazaar|hazar|thousand|k|l)?(?![a-z])/);
+  if(!am)return null;
+  const a=parseFloat(am[1])*(am[2]?UNIT[am[2]]:1);
+  const r=parseFloat(rm[1]);
+  let y=parseFloat(ym[1]);
+  if(/^(mahine|mahina|month|months|महीने)$/.test(ym[2]))y=y/12;
+  if(!(a>0)||!(r>0)||r>60||!(y>0)||y>50)return null;
+  return {type:isSip?'sip':'emi',a,r,y:Math.round(y*2)/2||0.5};
+}
+const inr=n=>'₹'+Math.round(n).toLocaleString('en-IN');
+function inrS(n){n=Math.round(n);if(n>=1e7)return '₹'+(n/1e7).toFixed(2)+' Cr';if(n>=1e5)return '₹'+(n/1e5).toFixed(2)+' L';return inr(n)}
+function calcOut(type,a,r,y){
+  const n=Math.round(y*12),i=r/1200;
+  if(type==='emi'){
+    const emi=i?a*i*Math.pow(1+i,n)/(Math.pow(1+i,n)-1):a/n;
+    const tot=emi*n;return {c:[emi,tot-a,tot],p:a,q:tot-a};
+  }
+  const fv=i?a*((Math.pow(1+i,n)-1)/i)*(1+i):a*n;
+  const inv=a*n;return {c:[inv,fv-inv,fv],p:inv,q:fv-inv};
+}
+function buildCalc(c){
+  const isE=c.type==='emi';
+  const T=isE?['Mahine ki EMI','Kul byaj','Kul rakam']:['Aapne lagaya','Anumani returns','Anumani value'];
+  const LG=isE?['Mool dhan','Byaj']:['Lagaya','Returns'];
+  const st={a:c.a,r:c.r,y:c.y};
+  const w=document.createElement('div');w.className='calc';
+  const ct=document.createElement('div');ct.className='ct';
+  ct.textContent=(isE?'EMI hisaab':'SIP hisaab')+' – slider khiskakar badal ke dekho';w.appendChild(ct);
+  const cd=document.createElement('div');cd.className='cards';
+  const vals=T.map((t,k)=>{const d=document.createElement('div');d.className='cd'+(k===0?' main':'');const s=document.createElement('small');s.textContent=t;const b=document.createElement('b');d.appendChild(s);d.appendChild(b);cd.appendChild(d);return b});
+  w.appendChild(cd);
+  const bar=document.createElement('div');bar.className='bar';const b1=document.createElement('i'),b2=document.createElement('i');bar.appendChild(b1);bar.appendChild(b2);w.appendChild(bar);
+  const lg=document.createElement('div');lg.className='lg';const l1=document.createElement('span'),l2=document.createElement('span');lg.appendChild(l1);lg.appendChild(l2);w.appendChild(lg);
+  const upd=()=>{
+    const o=calcOut(c.type,st.a,st.r,st.y);
+    o.c.forEach((v,k)=>{vals[k].textContent=inrS(v)});
+    const tot=o.p+o.q||1;
+    b1.style.width=(o.p/tot*100).toFixed(1)+'%';b2.style.width=(o.q/tot*100).toFixed(1)+'%';
+    l1.textContent=LG[0]+' '+Math.round(o.p/tot*100)+'%';l2.textContent=LG[1]+' '+Math.round(o.q/tot*100)+'%';
+  };
+  const rows=[
+    ['a',isE?'Loan rakam':'Mahine ki SIP',Math.min(isE?100000:500,c.a),Math.max(isE?50000000:100000,Math.ceil(c.a*2)),isE?10000:500,v=>inr(v)],
+    ['r',isE?'Byaj dar (saal ka)':'Anumani return (saal ka)',Math.min(1,c.r),Math.max(isE?20:30,Math.ceil(c.r)),0.1,v=>v.toFixed(1)+'%'],
+    ['y','Samay',0.5,Math.max(isE?30:40,Math.ceil(c.y)),0.5,v=>(v%1?v.toFixed(1):v)+' saal']
+  ];
+  rows.forEach(([k,lab,min,max,step,f])=>{
+    const s=document.createElement('div');s.className='sl';
+    const lr=document.createElement('div');lr.className='lr';
+    const ls=document.createElement('span');ls.textContent=lab;const lv=document.createElement('b');lv.textContent=f(st[k]);
+    lr.appendChild(ls);lr.appendChild(lv);s.appendChild(lr);
+    const rg=document.createElement('input');rg.type='range';rg.min=min;rg.max=max;rg.step=step;rg.value=st[k];rg.setAttribute('aria-label',lab);
+    rg.oninput=()=>{st[k]=parseFloat(rg.value);lv.textContent=f(st[k]);upd()};
+    s.appendChild(rg);w.appendChild(s);
+  });
+  upd();
+  return w;
 }
 
 /* attachments */
@@ -384,6 +546,7 @@ async function send(){
   try{
     const last=convo.length-1;
     const payload=convo.map((m,i)=>{const o={role:m.role,content:m.content};if(i===last&&m.attachments)o.attachments=m.attachments;return o});
+    const question=convo.length&&convo[last].role==='user'?String(convo[last].content||''):'';
     const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:payload}),signal:controller.signal});
     try{serverData=await r.json()}catch(_){}
     if(my!==gen)return;
@@ -397,7 +560,8 @@ async function send(){
     convo.push({role:'assistant',content:reply});
     log.push({role:'bot',text:reply});
     save();
-    botMsg(bot,reply,true,{verified:serverData.verified===true,options:serverData.options});
+    let calc=null;try{calc=parseCalc(question)}catch(_){}
+    botMsg(bot,reply,true,{verified:serverData.verified===true,options:serverData.options,calc,q:question});
   }catch(e){
     if(stopped||my!==gen)return;
     let msg=e&&e.fromServer?e.message:timedOut?'Jawab dene mein der lag gayi. Dobara try karein.':'Internet check karke dobara try karein.';
