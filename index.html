@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="index,follow">
-<meta name="theme-color" content="#0F9D6E">
+<meta name="theme-color" content="#DDEAFF">
 <title>Rupeyantra AI – Free Finance Assistant for EMI, SIP & Budget</title>
 <meta name="description" content="Rupeyantra AI se EMI, SIP, loan, budget aur bachat ke sawal Hinglish mein poochhein. Calculators, charts aur reports ek jagah.">
 <link rel="canonical" href="https://rupyantra-psi.vercel.app/ai">
@@ -20,11 +20,11 @@
 {"@context":"https://schema.org","@type":"WebApplication","name":"Rupeyantra AI","url":"https://rupyantra-psi.vercel.app/ai","applicationCategory":"FinanceApplication","operatingSystem":"Web","inLanguage":"en-IN","description":"AI assistant for understanding EMI, SIP, loans, budgeting and savings in Hinglish.","offers":{"@type":"Offer","price":"0","priceCurrency":"INR"}}
 </script>
 <style>
-:root{color-scheme:light dark;--bg:#F6FAF8;--text:#14282B;--muted:#6B7C80;--line:#DDE7E3;--card:#fff;--acc:#0F9D6E;--tint:rgba(15,157,110,.1)}
-@media(prefers-color-scheme:dark){:root{--bg:#0D1618;--text:#E6EFEC;--muted:#8DA19D;--line:#233436;--card:#142123;--acc:#2BC58F;--tint:rgba(43,197,143,.14)}}
+:root{color-scheme:light dark;--bg:#EAF2FE;--bgg:linear-gradient(180deg,#DDEAFF 0%,#EAF2FE 45%,#E4F4F6 100%);--text:#0F1E3D;--muted:#5B6B85;--line:#DCE5F0;--card:#fff;--acc:#2F5FDB;--acc2:#0D9488;--tint:rgba(47,95,219,.09)}
+@media(prefers-color-scheme:dark){:root{--bg:#0A1224;--bgg:#0A1224;--text:#EAF1FF;--muted:#8FA0C0;--line:#22305A;--card:#111C36;--acc:#4F7BF0;--acc2:#2DD4BF;--tint:rgba(79,123,240,.16)}}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--text);font-family:"Outfit",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{background:var(--bg);background-image:var(--bgg);background-attachment:fixed;color:var(--text);font-family:"Outfit",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 button,textarea,input{font:inherit}
 button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:transform .16s,background-color .22s,color .22s,opacity .22s}
 button:active:not(:disabled){transform:scale(.93)}
@@ -52,13 +52,13 @@ h1 span{color:var(--acc)}
 .msg.user img{display:block;max-width:100%;max-height:200px;border-radius:12px;margin:2px 0 6px}
 .msg.user .fl{font-size:13px;margin-bottom:4px}
 .msg.err{border-color:#e5484d;font-size:13px}
-.msg .num{font-weight:600;color:var(--acc)}
+.msg .num{font-weight:600;color:var(--acc2)}
 .msg strong{font-weight:600}
 .tools{display:flex;gap:2px;margin-top:7px;flex-wrap:wrap;white-space:normal}
 .tools button{border:0;background:none;color:var(--muted);font:500 12.5px "Outfit",system-ui,sans-serif;cursor:pointer;padding:4px 7px;border-radius:8px}
 .tools button:hover,.tools button.on{background:var(--tint);color:var(--text)}
 .retry{color:#d04444!important}
-.vf{font-size:12px;color:var(--acc);margin-top:6px}
+.vf{font-size:12px;color:var(--acc2);margin-top:6px}
 .opts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 .opts button{border:1px solid var(--line);background:var(--card);color:var(--text);font:500 13px "Outfit",system-ui,sans-serif;padding:6px 12px;border-radius:999px;cursor:pointer}
 .tw{overflow-x:auto;margin:8px 0;white-space:normal;border:1px solid var(--line);border-radius:12px}
@@ -93,7 +93,7 @@ h1 span{color:var(--acc)}
 .bars .b span{display:block;width:70%;border-radius:6px 6px 0 0;min-height:2px}
 .bars .b small{color:var(--muted)}
 .thinking{background:none!important;border:0!important;padding:4px 0!important;display:flex;align-items:center;gap:10px;font-weight:600}
-.thinking .dot{width:28px;height:28px;border-radius:50%;background:var(--acc);color:#fff;display:grid;place-items:center;font-weight:700;animation:pulse 1.4s ease-in-out infinite}
+.thinking .dot{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--acc2),var(--acc));color:#fff;display:grid;place-items:center;font-weight:700;animation:pulse 1.4s ease-in-out infinite}
 .thinking .t{color:var(--muted)}
 .note{font-size:13px;color:#e5484d;padding:0 6px 8px;display:none}
 .note.show{display:block}
@@ -111,7 +111,7 @@ textarea:focus,textarea:focus-visible{outline:none!important;box-shadow:none!imp
 #plus svg{transition:transform .28s cubic-bezier(.3,.7,.4,1)}
 #plus.on svg{transform:rotate(45deg)}
 #mic.on{background:var(--tint);color:var(--acc);animation:micp 1.2s ease-in-out infinite}
-#vbtn{color:var(--acc)}
+#vbtn{color:var(--acc2)}
 #vbtn:hover{background:var(--tint)}
 #send{background:var(--acc);color:#fff;opacity:.4}
 .has-text #send{opacity:1}
@@ -148,7 +148,7 @@ input[type=file]{display:none}
 #vo.open{display:flex}
 .vt{font-weight:600;font-size:20px;align-self:flex-start}
 .vm{display:flex;flex-direction:column;align-items:center;gap:22px;width:100%}
-#orb{width:150px;height:150px;border-radius:50%;border:0;cursor:pointer;background:radial-gradient(circle at 35% 30%,var(--tint),var(--acc))}
+#orb{width:150px;height:150px;border-radius:50%;border:0;cursor:pointer;background:radial-gradient(circle at 35% 30%,#fff,var(--acc2) 45%,var(--acc))}
 #orb.listen{animation:orb 1.6s ease-in-out infinite}
 #orb.think{animation:pulse 1s ease-in-out infinite}
 #orb.talk{animation:orb .7s ease-in-out infinite}
@@ -302,7 +302,7 @@ function speak(t,btn){
 }
 
 /* charts (sirf numbers se SVG/HTML banta hai) */
-const C=['#0F9D6E','#e5a13a','#4a8fe0'];
+const C=['#0D9488','#2F5FDB','#7FA1F5'];
 const F=n=>'₹'+Math.round(n).toLocaleString('en-IN');
 const S=n=>n>=1e7?'₹'+(n/1e7).toFixed(2)+' Cr':n>=1e5?'₹'+(n/1e5).toFixed(2)+' L':F(n);
 function pie(d){const t=d.reduce((s,x)=>s+x[1],0)||1,r=40,c=2*Math.PI*r;let o=0;
