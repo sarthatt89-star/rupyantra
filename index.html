@@ -102,7 +102,8 @@ h1 span{color:var(--acc)}
 .card:focus-within{border-color:var(--acc);box-shadow:0 0 0 4px var(--tint)}
 .row{display:contents}
 textarea{order:1;flex:1;min-width:0;min-height:24px;max-height:200px;border:0;outline:0;resize:none;background:transparent;color:var(--text);font:400 16px/1.5 "Outfit",system-ui,sans-serif;padding:8px 0}
-textarea::placeholder{color:var(--muted)}
+textarea:focus,textarea:focus-visible{outline:none!important;box-shadow:none!important}
+textarea::placeholder{color:var(--muted);transition:opacity .3s}
 .circle{width:38px;height:38px;border-radius:50%;border:0;display:grid;place-items:center;cursor:pointer;flex:none;background:none;color:var(--text)}
 .circle svg{width:20px;height:20px}
 #plusWrap{order:0;position:relative}
@@ -150,7 +151,7 @@ input[type=file]{display:none}
       <div id="note" class="note" role="status" aria-live="polite"></div>
       <form class="card" id="form">
         <div class="chips" id="chips"></div>
-        <textarea id="inp" rows="1" maxlength="4000" placeholder="Kuch bhi poochho…" aria-label="Apna sawal" autocomplete="off"></textarea>
+        <textarea id="inp" rows="1" maxlength="4000" placeholder="Ask Rupeyantra AI anything about money…" aria-label="Ask a question" autocomplete="off"></textarea>
         <div class="row">
           <div id="plusWrap">
             <button type="button" class="circle" id="plus" aria-label="Photo ya file jodo" aria-haspopup="true" aria-expanded="false"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -224,19 +225,34 @@ function dl(name,mime,data){const a=document.createElement('a');a.href=URL.creat
 const wrap=h=>'<html xmlns:o="urn:schemas-microsoft-com:office:office"><head><meta charset="utf-8"><style>table{border-collapse:collapse}td,th{border:1px solid #999;padding:4px}</style></head><body><h2>Rupeyantra AI</h2>'+h+'</body></html>';
 const sheet=el=>{const t=el.querySelectorAll('table');return t.length?Array.from(t).map(x=>x.outerHTML).join('<br>'):''};
 function csvOf(tbl){const q=v=>'"'+v.replace(/"/g,'""')+'"';return '\ufeff'+Array.from(tbl.rows).map(r=>Array.from(r.cells).map(c=>q(c.textContent)).join(',')).join('\r\n')}
-function printEl(el){el.classList.add('print-me');addEventListener('afterprint',()=>el.classList.remove('print-me'),{once:true});window.print()}
+function printEl(el){
+  const f=document.createElement('iframe');f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  const c=el.cloneNode(true);c.querySelectorAll('.tools,.opts,.vf,iframe,.code .h').forEach(x=>x.remove());
+  c.querySelectorAll('input').forEach(x=>x.setAttribute('value',x.value));
+  f.srcdoc='<!doctype html><meta charset="utf-8"><title>Rupeyantra AI</title><style>body{font:14px/1.6 system-ui,sans-serif;padding:20px;color:#000}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:5px;text-align:left}pre{white-space:pre-wrap}span>div:not(.tw):not(.code){white-space:pre-wrap}.tf{display:grid;gap:6px}label{font-size:12px;color:#444}.lgd{font-size:12px;color:#555}.pie{display:flex;gap:12px;align-items:center}.pie svg{width:100px}.ln{width:100%;height:100px}.bars{display:flex;gap:8px;align-items:flex-end;height:140px}.bars .b{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;font-size:11px}.bars .b span{display:block;width:70%}.big{font-size:22px;font-weight:700}.big small{display:block;font-size:12px;font-weight:400}</style><h2>Rupeyantra AI</h2>'+c.innerHTML;
+  f.onload=()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(_){window.print()}setTimeout(()=>f.remove(),60000)};
+  document.body.appendChild(f);
+}
 async function copyText(t,btn){
   let ok=false;try{await navigator.clipboard.writeText(t);ok=true}catch(e){const ta=document.createElement('textarea');ta.value=t;ta.style.cssText='position:fixed;opacity:0';document.body.appendChild(ta);ta.select();try{ok=document.execCommand('copy')}catch(_){}ta.remove()}
   const old=btn.textContent;btn.textContent=ok?'Copy ho gaya ✓':'Copy nahi hua';setTimeout(()=>{if(btn.isConnected)btn.textContent=old},1800);
 }
 function mk(row,label,fn){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>fn(b);row.appendChild(b);return b}
+let speakId=0;
 function speak(t,btn){
   const ss=window.speechSynthesis;if(!ss||!window.SpeechSynthesisUtterance){warn('Is browser mein sunna support nahi hai.');return}
-  if(speaking===btn){ss.cancel();return}
-  ss.cancel();
-  const u=new SpeechSynthesisUtterance(t.replace(/[*|`#_]/g,' ').slice(0,3000));u.lang='hi-IN';
-  const done=()=>{if(speaking===btn)speaking=null;btn.textContent='🔊 Suno'};
-  u.onend=u.onerror=done;speaking=btn;btn.textContent='⏹ Roko';ss.speak(u);
+  if(speaking===btn){speakId++;ss.cancel();speaking=null;btn.textContent='🔊 Suno';return}
+  speakId++;ss.cancel();
+  const id=speakId,parts=(t.replace(/[*|`#_]/g,' ').replace(/\s+/g,' ').match(/[^.!?।]+[.!?।]?/g)||[t]).map(x=>x.trim()).filter(Boolean).slice(0,40);
+  const vs=ss.getVoices(),v=vs.find(x=>/^hi/i.test(x.lang))||vs.find(x=>/^en-IN/i.test(x.lang));
+  speaking=btn;btn.textContent='⏹ Roko';
+  let k=0;
+  const next=()=>{
+    if(id!==speakId){btn.textContent='🔊 Suno';return}
+    if(k>=parts.length){speaking=null;btn.textContent='🔊 Suno';return}
+    const u=new SpeechSynthesisUtterance(parts[k++]);u.lang='hi-IN';if(v)u.voice=v;u.onend=next;u.onerror=next;ss.speak(u);
+  };
+  next();
 }
 
 /* charts (sirf numbers se SVG/HTML banta hai) */
@@ -545,7 +561,7 @@ $('newChat').onclick=async()=>{
   stopped=true;gen++;
   if(controller)controller.abort();
   if(rec){try{rec.stop()}catch(_){}}
-  if(window.speechSynthesis)speechSynthesis.cancel();
+  if(window.speechSynthesis){speakId++;speechSynthesis.cancel()}
   convo=[];log=[];pending=[];activeBot=null;lastUserEl=null;lastBot=null;
   msgs.innerHTML='';
   app.classList.remove('chatting');
@@ -587,6 +603,12 @@ async function restore(){
 }
 restore().catch(()=>{});
 grow();
+/* premium rotating placeholder (English) */
+(()=>{
+  const P=['Ask Rupeyantra AI anything about money…','Calculate my home loan EMI…','Plan a monthly SIP for my goal…','Build a budget for my salary…','Compare two loan offers…','Explain this bank statement…'];
+  let i=0;
+  setInterval(()=>{if(inp.value||document.activeElement===inp||document.hidden)return;i=(i+1)%P.length;inp.style.setProperty('--x',0);inp.placeholder=P[i]},4000);
+})();
 </script>
 </body>
 </html>
