@@ -54,6 +54,7 @@ h1{font-size:clamp(26px,7vw,38px);line-height:1.15;font-weight:700;letter-spacin
 .msg.err{border-color:#e5484d;font-size:13.5px}
 .msg .num{font-weight:600;color:var(--acc2)}
 .msg strong{font-weight:600}
+.msg .hd{font-weight:600;font-size:15.5px;margin:10px 0 4px}.msg .hd:first-child{margin-top:0}.msg ul,.msg ol{margin:6px 0;padding-left:22px;white-space:normal}.msg li{margin:3px 0}.msg a{color:var(--acc);text-decoration:underline;text-underline-offset:2px}.msg.user a{color:#fff}.msg code.mc{font:13px ui-monospace,Menlo,Consolas,monospace;background:var(--tint);padding:1px 5px;border-radius:6px}
 .tools{display:flex;gap:2px;margin-top:8px;flex-wrap:wrap;white-space:normal}
 .tools button{border:0;background:none;color:var(--muted);font:500 12.5px "Outfit",system-ui,sans-serif;cursor:pointer;padding:4px 7px;border-radius:8px}
 .tools button:hover,.tools button.on{background:var(--tint);color:var(--text)}
@@ -227,7 +228,7 @@ const app=$('app'),msgs=$('msgs'),inp=$('inp'),stopBtn=$('stop'),form=$('form'),
 const plus=$('plus'),menu=$('menu'),calcs=$('calcs'),imgIn=$('imgIn'),camIn=$('camIn'),fileIn=$('fileIn'),chips=$('chips'),note=$('note');
 const DEBUG=/[?&]debug=1/.test(location.search);
 const API='/api/chat';
-let convo=[],pending=[],log=[],gen=0,controller=null,activeBot=null,busy=false,noteTimer=null,rec=null,stopped=false,lastUserEl=null,lastDraft='',lastBot=null,speaking=null;
+let convo=[],pending=[],log=[],gen=0,controller=null,activeBot=null,busy=false,noteTimer=null,rec=null,stopped=false,lastUserEl=null,lastDraft='',lastBot=null,speaking=null,noCard=false,streamMeta={};
 const MAX_FILES=3,MAX_B64=2700000,MAX_TOTAL_B64=3300000,MAX_PDF=2000000,MAX_CONTENT=12000,TEXT_PER_FILE=8000,MAX_TEXT_FILE=500000,REQUEST_TIMEOUT=55000;
 const KEY='rupeyantra_chat_v2',DB_NAME='rupeyantra_ai_files',DB_STORE='sessions';
 const TEXT_EXT=/\.(txt|csv|tsv|json|md|log)$/i;
@@ -336,6 +337,13 @@ function toolCard(k){
   const row=document.createElement('div');row.className='tools';
   mk(row,'Excel',()=>dl(k+'-rupeyantra.xls','application/vnd.ms-excel',wrap('<h3>'+T.t+'</h3>'+ins.map((x,i)=>T.f[i][0]+': '+x.value).join('<br>')+'<br><br>'+out.querySelector('.big').textContent+'<br>'+sheet(out))));
   mk(row,'PDF',()=>printEl(d));
+  mk(row,'✨ Ask AI about this',()=>{
+    if(busy)return;
+    const bg=out.querySelector('.big'),res=Array.from(out.querySelectorAll('tr')).map(r=>Array.from(r.cells).map(c=>c.textContent).join(': ')).join('\n');
+    noCard=true;
+    inp.value='Explain this '+T.t.replace(/^\S+\s/,'')+' result in simple words and tell me what I should consider:\n'+ins.map((x,i)=>T.f[i][0]+': '+x.value).join('\n')+'\n'+bg.querySelector('small').textContent+': '+bg.lastChild.textContent+'\n'+res;
+    grow();form.requestSubmit();
+  });
   d.appendChild(row);msgs.appendChild(d);
   app.classList.add('chatting');down();
 }
@@ -415,7 +423,12 @@ function regen(bot){
 
 /* rich replies */
 function numify(p,s){s.split(/(₹\s?[\d,]+(?:\.\d+)?(?:\s?(?:lakh|crore|Lakh|Crore|L|Cr)\b)?)/).forEach((t,i)=>{if(!t)return;if(i%2){const n=document.createElement('span');n.className='num';n.textContent=t;p.appendChild(n)}else p.appendChild(document.createTextNode(t))})}
-function inl(p,s){s.split(/(\*\*[^*\n]+\*\*)/).forEach(part=>{if(/^\*\*[^*]+\*\*$/.test(part)){const b=document.createElement('strong');numify(b,part.slice(2,-2));p.appendChild(b)}else numify(p,part)})}
+function inl(p,s){s.split(/(\*\*[^*\n]+\*\*|`[^`\n]+`|\[[^\]\n]+\]\(https?:\/\/[^\s)]+\))/).forEach(part=>{
+  let m;
+  if(/^\*\*[^*]+\*\*$/.test(part)){const b=document.createElement('strong');numify(b,part.slice(2,-2));p.appendChild(b)}
+  else if(/^`[^`]+`$/.test(part)){const c=document.createElement('code');c.className='mc';c.textContent=part.slice(1,-1);p.appendChild(c)}
+  else if(m=/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/.exec(part)){const a=document.createElement('a');a.href=m[2];a.target='_blank';a.rel='noopener noreferrer';a.textContent=m[1];p.appendChild(a)}
+  else numify(p,part)})}
 const isRow=l=>/^\s*\|.*\|\s*$/.test(l);
 const isSep=l=>/^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(l);
 const cells=l=>l.trim().replace(/^\||\|$/g,'').split('|').map(c=>c.trim());
@@ -437,13 +450,22 @@ function codeCard(lang,code){
 }
 function renderRich(el,text){
   el.textContent='';const L=text.split('\n');let buf=[];
-  const flush=()=>{if(buf.length){const d=document.createElement('div');inl(d,buf.join('\n'));el.appendChild(d);buf=[]}};
+  const flush=()=>{const t=buf.join('\n').trim();if(t){const d=document.createElement('div');inl(d,t);el.appendChild(d)}buf=[]};
+  const BUL=/^\s*[-*•]\s+(.+)$/,NUM=/^\s*\d{1,2}[.)]\s+(.+)$/;
   for(let i=0;i<L.length;i++){
     const fence=/^\s*```\s*([\w+-]*)\s*$/.exec(L[i]);
     if(fence){
       flush();const c=[];i++;
       while(i<L.length&&!/^\s*```\s*$/.test(L[i])){c.push(L[i]);i++}
       el.appendChild(codeCard(fence[1],c.join('\n')));continue;
+    }
+    const hm=/^\s{0,3}#{1,4}\s+(.+?)\s*$/.exec(L[i]);
+    if(hm){flush();const h=document.createElement('div');h.className='hd';inl(h,hm[1].replace(/\s*#+$/,''));el.appendChild(h);continue}
+    const ord=NUM.test(L[i]);
+    if(ord||BUL.test(L[i])){
+      flush();const re=ord?NUM:BUL,ls=document.createElement(ord?'ol':'ul');
+      while(i<L.length){const x=re.exec(L[i]);if(!x)break;const li=document.createElement('li');inl(li,x[1]);ls.appendChild(li);i++}
+      i--;el.appendChild(ls);continue;
     }
     if(isRow(L[i])&&i+1<L.length&&isSep(L[i+1])){
       flush();
@@ -526,25 +548,52 @@ function buildContent(text){
   return (head+'\n\n'+blocks.join('\n\n')).slice(0,MAX_CONTENT);
 }
 
-/* send */
+/* send (streams when the server supports it, otherwise plain JSON) */
+async function readStream(r,bot,my){
+  const rd=r.body.getReader(),dec=new TextDecoder();
+  let buf='',acc='',raf=0,span=null;
+  streamMeta={};
+  const paint=()=>{raf=0;if(!bot.isConnected||my!==gen)return;if(!span){bot.classList.remove('thinking','err');bot.innerHTML='';span=document.createElement('span');bot.appendChild(span)}renderRich(span,acc);down()};
+  const handle=ln=>{
+    ln=ln.trim();if(!ln.startsWith('data:'))return;
+    const d=ln.slice(5).trim();if(!d||d==='[DONE]')return;
+    let j;try{j=JSON.parse(d)}catch(_){return}
+    if(j.error){const e=new Error(j.message||'No response right now. Please try again.');e.fromServer=true;throw e}
+    if(typeof j.delta==='string'){acc+=j.delta;if(!raf)raf=requestAnimationFrame(paint)}
+    if(j.done){if(typeof j.reply==='string'&&j.reply.trim())acc=j.reply;streamMeta={verified:j.verified===true,options:j.options}}
+  };
+  for(;;){const x=await rd.read();if(x.done)break;buf+=dec.decode(x.value,{stream:true});const ls=buf.split('\n');buf=ls.pop();ls.forEach(handle)}
+  if(buf)handle(buf);
+  if(raf)cancelAnimationFrame(raf);
+  return acc.trim();
+}
 async function send(){
   const my=++gen;
   stopped=false;
   controller=new AbortController();
   const bot=thinkingBot();activeBot=bot;setBusy(true);
+  const skipCard=noCard;noCard=false;
   let timedOut=false,serverData={};
   const timer=setTimeout(()=>{timedOut=true;controller.abort()},REQUEST_TIMEOUT);
   try{
     const last=convo.length-1;
     const payload=convo.map((m,i)=>{const o={role:m.role,content:m.content};if(i===last&&m.attachments)o.attachments=m.attachments;return o});
-    const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:payload}),signal:controller.signal});
-    try{serverData=await r.json()}catch(_){}
-    if(my!==gen)return;
-    const reply=serverData&&typeof serverData.reply==='string'?serverData.reply.trim():'';
-    if(!r.ok||!reply){
-      const e=new Error((serverData&&serverData.message)||'No response right now. Please try again.');
-      e.fromServer=true;throw e;
+    const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','Accept':'text/event-stream, application/json;q=0.9'},body:JSON.stringify({messages:payload}),signal:controller.signal});
+    let reply='',streamed=false;
+    if(r.ok&&r.body&&(r.headers.get('content-type')||'').includes('text/event-stream')){
+      streamed=true;
+      reply=await readStream(r,bot,my);
+      serverData=streamMeta;
+    }else{
+      try{serverData=await r.json()}catch(_){}
+      reply=serverData&&typeof serverData.reply==='string'?serverData.reply.trim():'';
+      if(!r.ok||!reply){
+        const e=new Error((serverData&&serverData.message)||'No response right now. Please try again.');
+        e.fromServer=true;throw e;
+      }
     }
+    if(my!==gen)return;
+    if(!reply){const e=new Error('No response right now. Please try again.');e.fromServer=true;throw e}
     setBusy(false);
     const asked=lastDraft;
     lastUserEl=null;
@@ -552,10 +601,10 @@ async function send(){
     log.push({role:'bot',text:reply});
     save();
     lastBot=bot;
-    botMsg(bot,reply,true,{verified:serverData.verified===true,options:serverData.options});
+    botMsg(bot,reply,!streamed,{verified:serverData.verified===true,options:serverData.options});
     if(voiceOn)vSpeak(reply);
     const hit=INTENT.find(x=>x[0].test(asked));
-    if(hit)toolCard(hit[1]);
+    if(hit&&!skipCard)toolCard(hit[1]);
   }catch(e){
     if(stopped||my!==gen)return;
     let msg=e&&e.fromServer?e.message:timedOut?'The response is taking too long. Please try again.':'Please check your connection and try again.';
