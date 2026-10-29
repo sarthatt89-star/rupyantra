@@ -25,6 +25,9 @@
  *   5. reply ke numbers/claims verify; fail ho to ek correction retry, phir safe fallback
  *   6. saare providers fail hon par bhi inputs poore hon to calculator ka result seedha dikhta hai
  *
+ * Ek se zyada sawal: jin calculations ke inputs poore hain wo chalti hain, kami wali details jawab ke ant mein
+ * ek saath poochhi jaati hain (route.pending_questions); sirf concept wale hisse bina numbers ke samjhaye jaate hain.
+ *
  * Vercel env (sab optional; jiski key ho wahi provider chalega):
  *   Keys: GEMINI_API_KEY, GROQ_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY, SAMBANOVA_API_KEY ... (_1.._10, ya ..._KEYS=k1,k2)
  *         ya ek hi AI_KEYS=key1,key2,deepseek:key3  ya koi bhi env jiska naam KEY/KEYS par khatam ho
@@ -261,6 +264,12 @@ function stepCalls(route) {
       return { name: s.tool, args, result: checkedRun(s.tool, args) };
     });
 }
+
+// Multi-sawal mein jin calculations ke inputs kam the, unki details jawab ke ant mein ek saath
+const pendingNote = route =>
+  route && Array.isArray(route.pending_questions) && route.pending_questions.length
+    ? '\n\nAur in ke liye ye details chahiye:\n' + route.pending_questions.join('\n')
+    : '';
 
 const inputNum = v => (typeof v === 'boolean' ? (v ? 1 : 0) : Number(String(v).replace(/[₹,\s]/g, '')));
 
@@ -703,7 +712,7 @@ function fallbackText(env, out, calcFresh, why = {}) {
   const multi = Boolean(route && route.mode === 'multi' && !env.hasMedia);
   if (multi && (why.steps || !out.calls.some(okCall))) {
     const sc = stepCalls(route).filter(okCall);
-    if (sc.length) return res(engine.describeCalls(sc), true);
+    if (sc.length) return res(engine.describeCalls(sc) + pendingNote(route), true);
   }
 
   const okCalls = out.calls.filter(okCall);
@@ -739,8 +748,8 @@ function engineOnly(env) {
 
   const ok = calls.filter(okCall);
   if (!ok.length) return '';
-  return engine.describeCalls(ok) +
-    '\nAssistant abhi AI explanation nahi de pa raha, isliye sirf calculator ka verified result dikha raha hoon.';
+  return engine.describeCalls(ok) + pendingNote(route) +
+    '\nAI se detail mein samjhana abhi thodi der ke liye available nahi hai, isliye calculator ka verified result dikha raha hoon. Thodi der baad dobara poochho to poori explanation mil jayegi.';
 }
 
 function badge(text, calls, userTexts, ctx, verification) {
