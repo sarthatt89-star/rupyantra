@@ -27,18 +27,8 @@
     "api/admin/report.js": {
       "maxDuration": 15,
       "includeFiles": "lib/**"
-    },
-    "api/cron/site-index.js": {
-      "maxDuration": 60,
-      "includeFiles": "lib/**"
     }
   },
-  "crons": [
-    {
-      "path": "/api/cron/site-index",
-      "schedule": "0 3 * * *"
-    }
-  ],
   "rewrites": [
     {
       "source": "/ai",
