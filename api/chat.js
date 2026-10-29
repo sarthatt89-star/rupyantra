@@ -24,6 +24,8 @@
  *      har provider ke andar keys ek ke baad ek (limit/quota par agli key); tool result checkedRun() se guzarta hai
  *   5. reply ke numbers/claims verify; fail ho to ek correction retry, phir safe fallback
  *   6. saare providers fail hon par bhi inputs poore hon to calculator ka result seedha dikhta hai
+ *   7. Jawab verify hone ke BAAD hi bheja jaata hai. Browser ne Accept: text/event-stream bheja ho to jawab
+ *      tukdon mein stream hota hai (respondOk), warna normal JSON. Kacha/unverified text kabhi stream nahi hota.
  *
  * Ek se zyada sawal: jin calculations ke inputs poore hain wo chalti hain, kami wali details jawab ke ant mein
  * ek saath poochhi jaati hain (route.pending_questions); sirf concept wale hisse bina numbers ke samjhaye jaate hain.
@@ -1034,6 +1036,39 @@ function adminCheck(supplied) {
     : { ok: false, reason: 'token match nahi hua (link ka token aur Vercel ka token alag hain)' };
 }
 
+/* ---------- streaming reply (verify hone ke baad tukdon mein) ---------- */
+
+const wantsStream = req => /text\/event-stream/i.test(String((req.headers && req.headers.accept) || ''));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// Jawab pehle poora verify ho chuka hota hai; yahan sirf use tukdon mein bheja jaata hai.
+// Browser ne event-stream nahi maanga (ya reply khali hai) to normal JSON, jaise pehle.
+// Aakhri "done" event mein poora payload (reply, verified, options, requestId ...) dobara jaata hai.
+async function respondOk(req, res, payload) {
+  if (!wantsStream(req) || typeof payload.reply !== 'string' || !payload.reply) {
+    return res.status(200).json(payload);
+  }
+
+  res.status(200);
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-transform');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  const text = payload.reply;
+  const size = Math.max(10, Math.ceil(text.length / 70));
+
+  try {
+    for (let i = 0; i < text.length; i += size) {
+      if (res.destroyed || res.writableEnded) return;
+      res.write('data: ' + JSON.stringify({ delta: text.slice(i, i + size) }) + '\n\n');
+      await sleep(14);
+    }
+    res.write('data: ' + JSON.stringify({ done: true, ...payload }) + '\n\n');
+  } catch (_) { /* client beech mein chala gaya */ }
+
+  try { res.end(); } catch (_) {}
+}
+
 /* ---------- handler ---------- */
 
 async function handler(req, res, meta) {
@@ -1143,7 +1178,7 @@ async function handler(req, res, meta) {
       const options = route.clarification && route.clarification.options;
       if (Array.isArray(options) && options.length) payload.options = options;
       await stats.record(usageCounters({ ok: 1 }, route));
-      return res.status(200).json(payload);
+      return respondOk(req, res, payload);
     }
   }
 
@@ -1152,7 +1187,7 @@ async function handler(req, res, meta) {
     const kb = knowledge.lookup(route, last.content);
     if (kb) {
       await stats.record(usageCounters({ ok: 1, kb_hit: 1 }, route));
-      return res.status(200).json({
+      return respondOk(req, res, {
         reply: kb.reply, checked: false, verified: false, source: 'knowledge', topic: kb.topic,
         options: kb.options, requestId
       });
@@ -1164,7 +1199,7 @@ async function handler(req, res, meta) {
     const g = await glossary.lookup(last.content);
     if (g) {
       await stats.record(usageCounters({ ok: 1, glossary_hit: 1 }, route));
-      return res.status(200).json({
+      return respondOk(req, res, {
         reply: g.text, checked: false, verified: false, source: 'glossary', topic: g.term, requestId
       });
     }
@@ -1239,7 +1274,7 @@ async function handler(req, res, meta) {
         requestId
       };
       if (out.fallback) payload.fallback = true;
-      return res.status(200).json(payload);
+      return await respondOk(req, res, payload);
     } catch (e) {
       eh.logError(e, {
         requestId, where: 'answer', provider: provider.name, durationMs: Date.now() - started, source: 'provider'
@@ -1257,7 +1292,7 @@ async function handler(req, res, meta) {
       await alerts.sendAlert('warning', 'AI nahi chala, calculator ka result diya', {
         requestId, providers: errs.map(x => x.provider).join(', ') || 'koi nahi'
       }, { timeoutMs: 3000 });
-      return res.status(200).json({
+      return await respondOk(req, res, {
         reply: local, checked: true, verified: true, fallback: true, source: 'engine', requestId
       });
     }
@@ -1298,5 +1333,6 @@ module.exports = eh.wrapHandler(handler, {
 
 module.exports.__test = {
   handler, post, answerWith, limited, sanitize, sys, verifiedLookup,
-  checkedRun, shield, fallbackText, engineOnly, stepMismatch, claimProblems, breaker, POOLS
+  checkedRun, shield, fallbackText, engineOnly, stepMismatch, claimProblems, breaker, POOLS,
+  respondOk, wantsStream
 };
