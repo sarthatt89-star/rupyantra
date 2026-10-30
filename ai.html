@@ -315,7 +315,17 @@ async function copyText(t,btn){
   const old=btn.textContent;btn.textContent=ok?'Copied ✓':'Copy failed';setTimeout(()=>{if(btn.isConnected)btn.textContent=old},1800);
 }
 function mk(row,label,fn){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>fn(b);row.appendChild(b);return b}
-/* one fixed voice: a clear, deep male voice (best male voice the device has, deepened a little) */
+
+/* ===== VOICE =====
+   One natural voice from ElevenLabs through /api/tts (the API key stays on the server).
+   VOICE_ID       : paste the Voice ID of the voice you chose (the one in voice-preview.mp3).
+                    ElevenLabs > Voices > your voice > "Copy voice ID". Leave '' to use the server's default voice.
+   BROWSER_FALLBACK: false = never use the built-in browser voice (it sounds robotic).
+                    If the server voice fails, a short message is shown instead. Set true only for emergencies. */
+const VOICE_ID='';
+const BROWSER_FALLBACK=false;
+
+/* browser voice (used only when BROWSER_FALLBACK is true) */
 const MALE_V=/\b(male|rishi|prabhat|ravi|hemant|madhur|james|david|daniel|alex|fred|mark|george|guy|ryan|thomas|arthur|aaron|liam)\b/i;
 const FEMALE_V=/\b(female|heera|neerja|kalpana|veena|lekha|samantha|karen|zira|susan|hazel|moira|tessa|fiona|victoria|aria|jenny|emma|sonia|libby|google uk english female)\b/i;
 function pickVoice(){
@@ -330,20 +340,129 @@ function applyVoice(u){
   u.pitch=v&&MALE_V.test(v.name)?.85:.7;
   u.rate=.94;u.volume=1;
 }
-let speakId=0;
-function speak(t,btn){
-  const ss=window.speechSynthesis;if(!ss||!window.SpeechSynthesisUtterance){warn('Listening is not supported in this browser.');return}
-  if(speaking===btn){speakId++;ss.cancel();speaking=null;btn.textContent='🔊 Listen';return}
-  speakId++;ss.cancel();
-  const id=speakId,parts=(t.replace(/[*|`#_]/g,' ').replace(/\s+/g,' ').match(/[^.!?।]+[.!?।]?/g)||[t]).map(x=>x.trim()).filter(Boolean).slice(0,40);
-  speaking=btn;btn.textContent='⏹ Stop';
-  let k=0;
-  const next=()=>{
-    if(id!==speakId){btn.textContent='🔊 Listen';return}
-    if(k>=parts.length){speaking=null;btn.textContent='🔊 Listen';return}
-    const u=new SpeechSynthesisUtterance(parts[k++]);applyVoice(u);u.onend=next;u.onerror=next;ss.speak(u);
+
+const SILENT='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+const player=new Audio();let audioUnlocked=false,ttsCtl=null,ttsToken=0,ttsBadUntil=0;
+player.preload='auto';
+function unlockAudio(){if(audioUnlocked)return;audioUnlocked=true;try{player.src=SILENT;const p=player.play();if(p&&p.catch)p.catch(()=>{})}catch(_){}}
+function stopSpeech(){
+  ttsToken++;
+  if(ttsCtl){try{ttsCtl.abort()}catch(_){}ttsCtl=null}
+  try{player.pause();if(player.onended)player.onended()}catch(_){}
+  try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(_){}
+}
+
+/* Turn written text into something a person would actually say: amounts in lakh/crore, % as "percent",
+   no markdown, no emoji, and a pause at the end of every line so lists do not run together. */
+const r2=v=>String(Math.round(v*100)/100);
+function speakable(t){
+  let s=String(t||'')
+    .replace(/```[\s\S]*?```/g,' ')
+    .replace(/^\s*\|.*\|\s*$/gm,' ')
+    .replace(/\[([^\]\n]+)\]\(https?:[^)\s]+\)/g,'$1')
+    .replace(/https?:\/\/\S+/g,' ')
+    .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu,'')
+    .replace(/₹\s?([\d,]+(?:\.\d+)?)(?:\s?(Cr|crore|L|lakh)\b)?/gi,(m,a,u)=>{
+      const x=parseFloat(a.replace(/,/g,''));
+      if(u)return a.replace(/,/g,'')+(/^c/i.test(u)?' crore':' lakh')+' rupees';
+      if(x>=1e7)return r2(x/1e7)+' crore rupees';
+      if(x>=1e5)return r2(x/1e5)+' lakh rupees';
+      return String(x)+' rupees';
+    })
+    .replace(/(\d)\s?%/g,'$1 percent')
+    .replace(/\bp\.?a\.?(?=[\s.,]|$)/gi,'per year')
+    .replace(/(\d),(?=\d{3}\b)/g,'$1')
+    .replace(/\s[-–—]\s/g,', ')
+    .replace(/[*|`#_>~]/g,' ');
+  s=s.split('\n').map(l=>l.replace(/^\s*(?:[-•]|\d{1,2}[.)])\s+/,'').trim()).filter(Boolean)
+    .map(l=>/[.!?।:;]$/.test(l)?l:l+'.').join(' ');
+  return s.replace(/\s+/g,' ').trim();
+}
+/* first piece is short so the voice starts fast; later pieces are longer so the tone flows naturally */
+function chunkText(t){
+  const clean=speakable(t).slice(0,2600);
+  const sents=clean.match(/[^.!?।]+[.!?।]+|[^.!?।]+$/g)||[clean],out=[];let cur='';
+  for(const x of sents){
+    const s=x.trim();if(!s)continue;
+    const lim=out.length?460:170;
+    if(cur&&(cur+' '+s).length>lim){out.push(cur);cur=s}else cur=cur?cur+' '+s:s;
+  }
+  if(cur)out.push(cur);
+  return out.filter(Boolean).slice(0,8);
+}
+async function fetchClip(text,signal,prev,next){
+  const body={text};
+  if(VOICE_ID)body.voiceId=VOICE_ID;
+  if(prev)body.previous_text=prev.slice(-300);   /* lets the server keep the same tone between pieces */
+  if(next)body.next_text=next.slice(0,300);
+  const r=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal});
+  if(!r.ok)throw new Error('tts '+r.status);
+  const b=await r.blob();if(!b.size)throw new Error('empty audio');
+  return URL.createObjectURL(b);
+}
+function playUrl(url){
+  return new Promise((res,rej)=>{
+    const done=f=>v=>{player.onended=player.onerror=null;URL.revokeObjectURL(url);f(v)};
+    player.onended=done(res);player.onerror=done(()=>rej(new Error('audio')));
+    player.src=url;const p=player.play();if(p&&p.catch)p.catch(done(rej));
+  });
+}
+function browserSpeak(parts,my){
+  return new Promise(res=>{
+    const ss=window.speechSynthesis;
+    if(!ss||!window.SpeechSynthesisUtterance){res('done');return}
+    let k=0;
+    const next=()=>{
+      if(my!==ttsToken){res('stopped');return}
+      if(k>=parts.length){res('done');return}
+      const u=new SpeechSynthesisUtterance(parts[k++]);applyVoice(u);u.onend=next;u.onerror=next;ss.speak(u);
+    };
+    next();
+  });
+}
+/* resolves 'done' or 'stopped'. The next two pieces are fetched while the current one plays, so there is no gap. */
+async function speakText(text,opt){
+  stopSpeech();
+  const my=ttsToken,parts=chunkText(text);
+  if(!parts.length)return 'done';
+  if(BROWSER_FALLBACK&&Date.now()<ttsBadUntil)return browserSpeak(parts,my);
+  ttsCtl=new AbortController();
+  const sig=ttsCtl.signal,clips=[];
+  const get=i=>{
+    if(i>=parts.length)return null;
+    if(!clips[i]){const p=fetchClip(parts[i],sig,parts[i-1],parts[i+1]);p.catch(()=>{});clips[i]=p}
+    return clips[i];
   };
-  next();
+  let played=0;
+  try{
+    get(0);get(1);
+    for(let i=0;i<parts.length;i++){
+      const url=await get(i);
+      if(my!==ttsToken){URL.revokeObjectURL(url);return 'stopped'}
+      get(i+1);get(i+2);
+      if(i===0&&opt&&opt.onStart)opt.onStart();
+      await playUrl(url);
+      if(my!==ttsToken)return 'stopped';
+      played=i+1;
+    }
+    return 'done';
+  }catch(e){
+    if(my!==ttsToken)return 'stopped';
+    if(BROWSER_FALLBACK){
+      ttsBadUntil=Date.now()+120000;
+      if(opt&&opt.onStart)opt.onStart();
+      return browserSpeak(parts.slice(played),my);
+    }
+    warn('The voice is not available right now. Please try again in a moment.');
+    return 'done';
+  }
+}
+function speak(t,btn){
+  if(speaking===btn){stopSpeech();speaking=null;btn.textContent='🔊 Listen';return}
+  const old=speaking;if(old&&old.isConnected)old.textContent='🔊 Listen';
+  unlockAudio();
+  speaking=btn;btn.textContent='⏳ Loading…';
+  speakText(t,{onStart:()=>{if(speaking===btn)btn.textContent='⏹ Stop'}}).then(()=>{if(speaking===btn){speaking=null;btn.textContent='🔊 Listen'}});
 }
 
 /* charts */
@@ -827,7 +946,7 @@ $('newChat').onclick=async()=>{
   stopped=true;gen++;
   if(controller)controller.abort();
   if(rec){try{rec.stop()}catch(_){}}
-  if(window.speechSynthesis){speakId++;speechSynthesis.cancel()}
+  stopSpeech();
   if(voiceOn)$('vx').onclick();
   convo=[];log=[];pending=[];activeBot=null;lastUserEl=null;lastBot=null;genRun=false;setGen(null);
   msgs.innerHTML='';
@@ -864,7 +983,7 @@ function vStop(){const r=vRec;vRec=null;if(r){r.onend=null;try{r.abort()}catch(_
 function vListen(){
   if(!voiceOn||vMuted||busy||vRec)return;
   if(!SR){vSet('','Voice input is not supported in this browser. Please use Chrome.');return}
-  try{speechSynthesis.cancel()}catch(_){}
+  stopSpeech();
   const r=new SR();r.lang='en-IN';r.interimResults=true;r.continuous=false;
   let fin='';
   r.onresult=ev=>{fin=Array.from(ev.results).map(x=>x[0].transcript).join(' ').trim();vst.textContent=fin};
@@ -877,30 +996,23 @@ function vListen(){
   vRec=r;vSet('listen','Go ahead, I’m listening…');
   try{r.start()}catch(_){vRec=null}
 }
-function vSpeak(t,sample){
+function vSpeak(t){
   if(!voiceOn)return;
-  const ss=window.speechSynthesis;
-  if(!ss||!window.SpeechSynthesisUtterance){vListen();return}
   const id=++vId;
-  const clean=t.replace(/```[\s\S]*?```/g,' ').replace(/^\s*\|.*\|\s*$/gm,' ').replace(/[*|`#_]/g,' ').replace(/\s+/g,' ').trim();
-  const parts=(clean.match(/[^.!?।]+[.!?।]?/g)||[clean]).map(x=>x.trim()).filter(Boolean).slice(0,30);
-  let k=0;vSet('talk','Speaking… tap the orb to interrupt');
-  const next=()=>{
-    if(id!==vId||!voiceOn)return;
-    if(k>=parts.length){sample?vSet('','Tap the orb to start speaking.'):vListen();return}
-    const u=new SpeechSynthesisUtterance(parts[k++]);applyVoice(u);
-    u.onend=next;u.onerror=next;ss.speak(u);
-  };
-  ss.cancel();next();
+  vSet('talk','Preparing voice…');
+  speakText(t,{onStart:()=>{if(id===vId&&voiceOn)vSet('talk','Speaking… tap the orb to interrupt')}}).then(r=>{
+    if(id!==vId||!voiceOn||r==='stopped')return;
+    vListen();
+  });
 }
-$('vbtn').onclick=()=>{voiceOn=true;vMuted=false;$('vm').classList.remove('on');vo.classList.add('open');vListen()};
-$('vx').onclick=()=>{voiceOn=false;vId++;vStop();try{speechSynthesis.cancel()}catch(_){}vo.classList.remove('open')};
+$('vbtn').onclick=()=>{unlockAudio();voiceOn=true;vMuted=false;$('vm').classList.remove('on');vo.classList.add('open');vListen()};
+$('vx').onclick=()=>{voiceOn=false;vId++;vStop();stopSpeech();vo.classList.remove('open')};
 $('vm').onclick=e=>{
   vMuted=!vMuted;e.currentTarget.classList.toggle('on',vMuted);
   if(vMuted){vStop();vSet('','Microphone is off.')}else vListen();
 };
 orb.onclick=()=>{
-  if(vState==='talk'){vId++;try{speechSynthesis.cancel()}catch(_){}vListen()}
+  if(vState==='talk'){vId++;stopSpeech();vListen()}
   else if(vState==='')vListen();
 };
 
