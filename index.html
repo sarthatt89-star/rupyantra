@@ -13,6 +13,7 @@
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://rupyantra-psi.vercel.app/ai">
 <meta name="twitter:card" content="summary">
+<script>try{var t=localStorage.getItem("rupeyantra_theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -22,6 +23,9 @@
 <style>
 :root{color-scheme:light dark;--bg:#F3F7FE;--bgg:linear-gradient(180deg,#E6EEFC 0%,#F3F7FE 50%,#EDF6F7 100%);--text:#0F1E3D;--muted:#5B6B85;--line:#DCE5F0;--card:#fff;--acc:#2F5FDB;--acc2:#0D9488;--tint:rgba(47,95,219,.08);--sh:0 10px 30px -16px rgba(15,30,61,.3)}
 @media(prefers-color-scheme:dark){:root{--bg:#0A1224;--bgg:#0A1224;--text:#EAF1FF;--muted:#8FA0C0;--line:#22305A;--card:#111C36;--acc:#4F7BF0;--acc2:#2DD4BF;--tint:rgba(79,123,240,.16);--sh:0 10px 30px -16px rgba(0,0,0,.6)}}
+:root[data-theme="light"]{color-scheme:light;--bg:#F3F7FE;--bgg:linear-gradient(180deg,#E6EEFC 0%,#F3F7FE 50%,#EDF6F7 100%);--text:#0F1E3D;--muted:#5B6B85;--line:#DCE5F0;--card:#fff;--acc:#2F5FDB;--acc2:#0D9488;--tint:rgba(47,95,219,.08);--sh:0 10px 30px -16px rgba(15,30,61,.3)}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0A1224;--bgg:#0A1224;--text:#EAF1FF;--muted:#8FA0C0;--line:#22305A;--card:#111C36;--acc:#4F7BF0;--acc2:#2DD4BF;--tint:rgba(79,123,240,.16);--sh:0 10px 30px -16px rgba(0,0,0,.6)}
+.tb{display:flex;gap:2px}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
 body{background:var(--bg);background-image:var(--bgg);background-attachment:fixed;color:var(--text);font-family:"Outfit",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
@@ -55,6 +59,7 @@ h1{font-size:clamp(26px,7vw,38px);line-height:1.15;font-weight:700;letter-spacin
 .msg .num{font-weight:600;color:var(--acc2)}
 .msg strong{font-weight:600}
 .msg .hd{font-weight:600;font-size:15.5px;margin:10px 0 4px}.msg .hd:first-child{margin-top:0}.msg ul,.msg ol{margin:6px 0;padding-left:22px;white-space:normal}.msg li{margin:3px 0}.msg a{color:var(--acc);text-decoration:underline;text-underline-offset:2px}.msg.user a{color:#fff}.msg code.mc{font:13px ui-monospace,Menlo,Consolas,monospace;background:var(--tint);padding:1px 5px;border-radius:6px}
+.am{margin:8px 0}.am summary{cursor:pointer;font-size:13.5px;font-weight:600;padding:6px 0}
 .genpill{display:flex;align-items:center;gap:8px;margin:0 4px 8px;padding:5px 6px 5px 12px;border-radius:999px;background:var(--tint);border:1px solid var(--line);font-size:13px;font-weight:500;width:max-content;max-width:100%}.genpill[hidden]{display:none}.genpill button{border:0;background:none;color:var(--muted);font-size:18px;width:22px;height:22px;border-radius:50%;cursor:pointer}
 .mdv{padding:10px 12px;max-height:320px;overflow:auto;white-space:normal;font-size:14px;line-height:1.55;border-top:1px solid var(--line)}
 .tools{display:flex;gap:2px;margin-top:8px;flex-wrap:wrap;white-space:normal}
@@ -169,7 +174,7 @@ input[type=file]{display:none}
 <div id="app">
   <div class="top">
     <div class="brand"><span class="logo">₹</span>Rupeyantra AI</div>
-    <button class="ib" id="newChat" aria-label="New chat" title="New chat"><svg class="i" viewBox="0 0 24 24"><path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/><path d="M18.4 3.6a1.9 1.9 0 0 1 2.7 2.7L12 15.4l-3.8 1 1-3.8z"/></svg></button>
+    <div class="tb"><button class="ib" id="themeBtn" aria-label="Switch light or dark theme" title="Switch theme"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button><button class="ib" id="newChat" aria-label="New chat" title="New chat"><svg class="i" viewBox="0 0 24 24"><path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/><path d="M18.4 3.6a1.9 1.9 0 0 1 2.7 2.7L12 15.4l-3.8 1 1-3.8z"/></svg></button></div>
   </div>
   <main id="body">
     <h1>Smarter money decisions, explained clearly</h1>
@@ -285,7 +290,7 @@ function csvOf(tbl){const q=v=>'"'+v.replace(/"/g,'""')+'"';return '\ufeff'+Arra
 function printEl(el){
   const f=document.createElement('iframe');f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
   const c=el.cloneNode(true);c.querySelectorAll('.tools,.opts,.vf,iframe,.code .h').forEach(x=>x.remove());
-  c.querySelectorAll('input').forEach(x=>x.setAttribute('value',x.value));
+  c.querySelectorAll('input').forEach(x=>x.setAttribute('value',x.value));c.querySelectorAll('details').forEach(x=>x.setAttribute('open',''));
   f.srcdoc='<!doctype html><meta charset="utf-8"><title>Rupeyantra AI</title><style>body{font:14px/1.6 system-ui,sans-serif;padding:20px;color:#000}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:5px;text-align:left}pre{white-space:pre-wrap}span>div:not(.tw):not(.code){white-space:pre-wrap}.tf{display:grid;gap:6px}label{font-size:12px;color:#444}.lgd{font-size:12px;color:#555}.pie{display:flex;gap:12px;align-items:center}.pie svg{width:100px}.ln{width:100%;height:100px}.bars{display:flex;gap:8px;align-items:flex-end;height:140px}.bars .b{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;font-size:11px}.bars .b span{display:block;width:70%}.big{font-size:22px;font-weight:700}.big small{display:block;font-size:12px;font-weight:400}</style><h2>Rupeyantra AI</h2>'+c.innerHTML;
   f.onload=()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(_){window.print()}setTimeout(()=>f.remove(),60000)};
   document.body.appendChild(f);
@@ -321,24 +326,40 @@ function pie(d){const t=d.reduce((s,x)=>s+x[1],0)||1,r=40,c=2*Math.PI*r;let o=0;
   return '<div class="pie"><svg viewBox="0 0 120 120">'+a+'</svg><div class="lg">'+d.map((x,i)=>'<div><i style="background:'+C[i]+'"></i>'+x[0]+' · '+Math.round(Math.max(0,x[1])/t*100)+'% ('+S(x[1])+')</div>').join('')+'</div></div>'}
 function bars(d){const m=Math.max(...d.map(x=>Math.abs(x[1])),1);
   return '<div class="bars">'+d.map((x,i)=>'<div class="b"><b>'+S(x[1])+'</b><span style="height:'+Math.max(2,Math.abs(x[1])/m*70)+'%;background:'+C[i%3]+'"></span><small>'+x[0]+'</small></div>').join('')+'</div>'}
-function line(a,b){const m=Math.max(...a,...b,1),p=s=>s.map((v,i)=>(i/((s.length-1)||1)*200).toFixed(1)+','+(78-v/m*74).toFixed(1)).join(' ');
-  return '<svg class="ln" viewBox="0 0 200 80" preserveAspectRatio="none"><polyline points="'+p(a)+'" fill="none" stroke="'+C[1]+'" stroke-width="2" vector-effect="non-scaling-stroke"/><polyline points="'+p(b)+'" fill="none" stroke="'+C[0]+'" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg><div class="lgd"><span style="color:'+C[1]+'">━</span> Amount invested &nbsp; <span style="color:'+C[0]+'">━</span> Total value</div>'}
+function line(a,b,l1,l2){const m=Math.max(...a,...b,1),p=s=>s.map((v,i)=>(i/((s.length-1)||1)*200).toFixed(1)+','+(78-v/m*74).toFixed(1)).join(' ');
+  return '<svg class="ln" viewBox="0 0 200 80" preserveAspectRatio="none"><polyline points="'+p(a)+'" fill="none" stroke="'+C[1]+'" stroke-width="2" vector-effect="non-scaling-stroke"/><polyline points="'+p(b)+'" fill="none" stroke="'+C[0]+'" stroke-width="2.5" vector-effect="non-scaling-stroke"/></svg><div class="lgd"><span style="color:'+C[1]+'">━</span> '+(l1||'Amount invested')+' &nbsp; <span style="color:'+C[0]+'">━</span> '+(l2||'Total value')+'</div>'}
 const emi=(a,r,y)=>{const i=r/1200,n=Math.max(1,Math.round(y*12)),p=Math.pow(1+i,n);return {e:i?a*i*p/(p-1):a/n,n}};
 
+const dur=mo=>Math.floor(mo/12)+' yr '+(mo%12)+' mo';
 /* mini apps */
 const TOOLS={
-emi:{t:'🏠 EMI Calculator',f:[['Loan amount (₹)',5000000],['Interest rate (% per year)',8.5],['Tenure (years)',20]],c:(a,r,y)=>{const {e,n}=emi(a,r,y),tot=e*n;return {m:['Monthly EMI',F(e)],rows:[['Loan amount',F(a)],['Total interest',F(tot-a)],['Total payment',F(tot)]],ch:pie([['Principal',a],['Interest',Math.max(0,tot-a)]])}}},
+emi:{t:'🏠 EMI Calculator',f:[['Loan amount (₹)',5000000],['Interest rate (% per year)',8.5],['Tenure (years)',20],['Extra monthly payment (₹)',0]],c:(a,r,y,x)=>{
+  const {e,n}=emi(a,r,y),i=r/1200,tot=e*n;
+  let bal=a,intT=0,k=0,yp=0,yi=0,cp=0;const yr=[],P=[0],O=[a];
+  while(a>0&&bal>0.005&&k<n+600){
+    k++;const it=bal*i,pr=Math.min(bal,e+x-it);if(pr<=0)break;
+    bal-=pr;intT+=it;yp+=pr;yi+=it;cp+=pr;
+    if(k%12===0||bal<=0.005){const b=Math.max(0,bal);yr.push([Math.ceil(k/12),yp,yi,b]);P.push(cp);O.push(b);yp=0;yi=0}
+  }
+  const sched=yr.length?'<details class="am"><summary>Year-by-year schedule</summary><div class="tw"><table><thead><tr><th>Year</th><th>Principal</th><th>Interest</th><th>Balance</th></tr></thead><tbody>'+yr.map(z=>'<tr><td>'+z[0]+'</td><td>'+F(z[1])+'</td><td>'+F(z[2])+'</td><td>'+F(z[3])+'</td></tr>').join('')+'</tbody></table></div></details>':'';
+  const rows=[['Loan amount',F(a)],['Total interest',F(intT)],['Total payment',F(a+intT)]];
+  if(x>0)rows.push(['Loan closes in',dur(k)],['Interest saved',F(Math.max(0,tot-a-intT))]);
+  return {m:['Monthly EMI',F(e)],rows,ch:pie([['Principal',a],['Interest',Math.max(0,intT)]])+line(P,O,'Principal repaid','Outstanding balance')+sched}}},
+fd:{t:'🏦 FD Calculator',f:[['Deposit amount (₹)',500000],['Interest rate (% per year)',7],['Tenure (years)',5]],c:(p,r,y)=>{const v=k=>p*Math.pow(1+r/400,4*k),Y=Math.max(1,Math.ceil(y)),A=[],B=[];for(let k=0;k<=Y;k++){A.push(p);B.push(v(Math.min(k,y)))}const fv=v(y);return {m:['Maturity amount',S(fv)],rows:[['Deposit',F(p)],['Interest earned',F(fv-p)],['Maturity amount',F(fv)]],ch:line(A,B,'Deposit','Value')+'<div class="lgd">Assumes quarterly compounding. Enter the current rate from your bank.</div>'}}},
+rd:{t:'🪙 RD Calculator',f:[['Monthly deposit (₹)',5000],['Interest rate (% per year)',6.5],['Tenure (years)',5]],c:(m,r,y)=>{const n=Math.max(1,Math.round(y*12)),val=k=>{let t=0;for(let j=1;j<=k;j++)t+=m*Math.pow(1+r/400,4*(k-j+1)/12);return t},A=[],B=[];for(let k=0;k<=Math.ceil(n/12);k++){const mo=Math.min(n,k*12);A.push(m*mo);B.push(val(mo))}const fv=val(n),inv=m*n;return {m:['Maturity amount',S(fv)],rows:[['Total deposited',F(inv)],['Interest earned',F(fv-inv)],['Maturity amount',F(fv)]],ch:line(A,B,'Deposited','Value')+'<div class="lgd">Assumes quarterly compounding. Enter the current rate from your bank.</div>'}}},
+ppf:{t:'🏛️ PPF Calculator',f:[['Yearly deposit (₹)',150000],['Interest rate (% per year)',7.1],['Tenure (years)',15]],c:(d,r,y)=>{const Y=Math.max(1,Math.round(y)),i=r/100,A=[0],B=[0];let bal=0;for(let k=1;k<=Y;k++){bal=(bal+d)*(1+i);A.push(d*k);B.push(bal)}const inv=d*Y;return {m:['Maturity value',S(bal)],rows:[['Total deposited',F(inv)],['Interest earned',F(bal-inv)],['Maturity value',F(bal)]],ch:line(A,B,'Deposited','Value')+'<div class="lgd">Simplified: yearly deposit at the start of each year, compounded yearly. The rate and deposit limit are set by the government, so check the current figures on an official source.</div>'}}},
+swp:{t:'💸 SWP Calculator',f:[['Starting corpus (₹)',5000000],['Monthly withdrawal (₹)',30000],['Expected return (% per year)',8],['Duration (years)',15]],c:(c0,w,r,y)=>{const i=r/1200,n=Math.max(1,Math.round(y*12));let bal=c0,took=0,lasted=n,dead=false;const A=[0],B=[c0];for(let k=1;k<=n;k++){if(!dead){const t=Math.min(w,bal);took+=t;bal=(bal-t)*(1+i);if(bal<=0.5){bal=0;dead=true;lasted=k}}if(k%12===0||k===n){A.push(took);B.push(bal)}}return {m:dead?['Corpus lasts for',dur(lasted)]:['Balance after '+dur(n),S(bal)],rows:[['Starting corpus',F(c0)],['Total withdrawn',F(took)],['Final balance',F(bal)],['Corpus lasts',dead?dur(lasted):'Full '+dur(n)]],ch:line(A,B,'Total withdrawn','Remaining balance')+(dead?'<div class="lgd">The corpus runs out before the chosen duration.</div>':'<div class="lgd">Returns are estimates, not guaranteed.</div>')}}},
 sip:{t:'📈 SIP Calculator',f:[['Monthly SIP (₹)',5000],['Expected return (% per year)',12],['Duration (years)',10]],c:(m,r,y)=>{const i=r/1200,n=Math.max(1,Math.round(y*12)),v=k=>i?m*(Math.pow(1+i,k)-1)/i*(1+i):m*k,A=[],B=[];for(let k=0;k<=y;k++){A.push(m*k*12);B.push(v(k*12))}const fv=v(n),inv=m*n;return {m:['Estimated value',S(fv)],rows:[['Total invested',F(inv)],['Estimated gains',F(fv-inv)],['Total value',F(fv)]],ch:line(A,B)+'<div class="lgd">Returns are estimates, not guaranteed.</div>'}}},
 goal:{t:'🎯 Goal Planner',f:[['Target amount (₹)',2500000],['Duration (years)',10],['Expected return (% per year)',12]],c:(t,y,r)=>{const i=r/1200,n=Math.max(1,Math.round(y*12)),m=i?t*i/((Math.pow(1+i,n)-1)*(1+i)):t/n;return {m:['Monthly SIP required',F(m)],rows:[['Target',F(t)],['Total invested',F(m*n)],['Estimated gains',F(t-m*n)]],ch:pie([['Your money',m*n],['Gains',Math.max(0,t-m*n)]])}}},
 budget:{t:'💰 Budget Planner',f:[['Monthly income (₹)',40000],['Essential expenses (₹)',20000],['Wants (₹)',8000]],c:(inc,n,w)=>{const s=inc-n-w;return {m:['Monthly savings',(s<0?'−':'')+F(Math.abs(s))],rows:[['Savings rate',inc?Math.round(s/inc*100)+'%':'0%'],['Essentials',inc?Math.round(n/inc*100)+'%':'0%'],['Wants',inc?Math.round(w/inc*100)+'%':'0%']],ch:bars([['Essentials',n],['Wants',w],['Savings',Math.max(0,s)]])+(s<0?'<div class="lgd">Expenses exceed income.</div>':'<div class="lgd">Rule of thumb: 50% essentials, 30% wants, 20% savings.</div>')}}},
 cmp:{t:'⚖️ Loan Comparison',f:[['Loan amount (₹)',5000000],['Tenure (years)',20],['Bank A rate (%)',8.5],['Bank B rate (%)',8.9]],c:(a,y,r1,r2)=>{const x=emi(a,r1,y),z=emi(a,r2,y),t1=x.e*x.n-a,t2=z.e*z.n-a;return {m:['Interest difference',F(Math.abs(t1-t2))],rows:[['Bank A EMI',F(x.e)],['Bank B EMI',F(z.e)],['Bank A total interest',F(t1)],['Bank B total interest',F(t2)]],ch:bars([['A interest',t1],['B interest',t2]])}}}
 };
-const INTENT=[[/\bemi\b|home loan|car loan|personal loan/i,'emi'],[/\bsip\b|mutual fund/i,'sip'],[/budget|bachat|saving/i,'budget'],[/goal|lakshya|target/i,'goal'],[/compar|tulna|\bvs\b/i,'cmp']];
+const INTENT=[[/\bemi\b|home loan|car loan|personal loan/i,'emi'],[/\bswp\b|systematic withdrawal/i,'swp'],[/\bppf\b/i,'ppf'],[/\bfd\b|fixed deposit/i,'fd'],[/\brd\b|recurring deposit/i,'rd'],[/\bsip\b|mutual fund/i,'sip'],[/budget|bachat|saving/i,'budget'],[/goal|lakshya|target/i,'goal'],[/compar|tulna|\bvs\b/i,'cmp']];
 function toolCard(k){
   const T=TOOLS[k],d=document.createElement('div');d.className='msg bot tool';
   d.innerHTML='<b>'+T.t+'</b><div class="tf">'+T.f.map(f=>'<label>'+f[0]+'<input type="number" inputmode="decimal" step="any" min="0" value="'+f[1]+'"></label>').join('')+'</div><div class="tr"></div>';
   const out=d.querySelector('.tr'),ins=Array.from(d.querySelectorAll('input'));
-  const run=()=>{const r=T.c(...ins.map(x=>Math.max(0,parseFloat(x.value)||0)));out.innerHTML='<div class="big"><small>'+r.m[0]+'</small>'+r.m[1]+'</div>'+r.ch+'<div class="tw"><table><tbody>'+r.rows.map(x=>'<tr><td>'+x[0]+'</td><td>'+x[1]+'</td></tr>').join('')+'</tbody></table></div>'};
+  const run=()=>{const was=(out.querySelector('details')||{}).open;const r=T.c(...ins.map(x=>Math.max(0,parseFloat(x.value)||0)));out.innerHTML='<div class="big"><small>'+r.m[0]+'</small>'+r.m[1]+'</div>'+r.ch+'<div class="tw"><table><tbody>'+r.rows.map(x=>'<tr><td>'+x[0]+'</td><td>'+x[1]+'</td></tr>').join('')+'</tbody></table></div>';if(was){const nd=out.querySelector('details');if(nd)nd.open=true}};
   ins.forEach(x=>x.oninput=run);run();
   const row=document.createElement('div');row.className='tools';
   mk(row,'Excel',()=>dl(k+'-rupeyantra.xls','application/vnd.ms-excel',wrap('<h3>'+T.t+'</h3>'+ins.map((x,i)=>T.f[i][0]+': '+x.value).join('<br>')+'<br><br>'+out.querySelector('.big').textContent+'<br>'+sheet(out))));
@@ -750,8 +771,17 @@ async function startGen(prompt){
   }
 }
 
+/* theme */
+const isDark=()=>{const t=document.documentElement.getAttribute('data-theme');return t?t==='dark':!!(window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)};
+$('themeBtn').onclick=()=>{
+  const t=isDark()?'light':'dark';
+  document.documentElement.setAttribute('data-theme',t);
+  try{localStorage.setItem('rupeyantra_theme',t)}catch(_){}
+  const m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',t==='dark'?'#0A1224':'#F3F7FE');
+};
 /* new chat */
 $('newChat').onclick=async()=>{
+  if((convo.length||log.length||msgs.children.length)&&!window.confirm('Start a new chat? This clears the current conversation.'))return;
   stopped=true;gen++;
   if(controller)controller.abort();
   if(rec){try{rec.stop()}catch(_){}}
