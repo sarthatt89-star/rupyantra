@@ -238,7 +238,6 @@ input[type=file]{display:none}
     <div class="vt">Rupeyantra Voice</div>
     <div class="vm"><button type="button" id="orb" aria-label="Voice orb"></button><div id="vst" aria-live="polite"></div></div>
     <div class="vr">
-      <button type="button" class="circle" id="vv" aria-label="Change voice" title="Change voice"><svg class="i" viewBox="0 0 24 24"><path d="M4 12h2M9 8v8M14 5v14M19 9v6"/></svg></button>
       <button type="button" class="circle" id="vm" aria-label="Mute or unmute mic" title="Mic"><svg class="i" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></svg></button>
       <button type="button" class="circle" id="vx" aria-label="Close" title="Close"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
     </div>
@@ -316,19 +315,33 @@ async function copyText(t,btn){
   const old=btn.textContent;btn.textContent=ok?'Copied ✓':'Copy failed';setTimeout(()=>{if(btn.isConnected)btn.textContent=old},1800);
 }
 function mk(row,label,fn){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>fn(b);row.appendChild(b);return b}
+/* one fixed voice: a clear, deep male voice (best male voice the device has, deepened a little) */
+const MALE_V=/\b(male|rishi|prabhat|ravi|hemant|madhur|james|david|daniel|alex|fred|mark|george|guy|ryan|thomas|arthur|aaron|liam)\b/i;
+const FEMALE_V=/\b(female|heera|neerja|kalpana|veena|lekha|samantha|karen|zira|susan|hazel|moira|tessa|fiona|victoria|aria|jenny|emma|sonia|libby|google uk english female)\b/i;
+function pickVoice(){
+  const all=window.speechSynthesis?speechSynthesis.getVoices():[];
+  const en=all.filter(v=>/^en/i.test(v.lang)),pool=en.length?en:all;
+  const score=v=>{let s=0;if(/^en-IN/i.test(v.lang))s+=4;else if(/^en-(GB|US|AU)/i.test(v.lang))s+=2;if(MALE_V.test(v.name))s+=6;if(FEMALE_V.test(v.name))s-=8;if(/natural|neural|online|google/i.test(v.name))s+=1;if(v.localService)s+=.5;return s};
+  return pool.slice().sort((a,b)=>score(b)-score(a))[0]||null;
+}
+function applyVoice(u){
+  const v=pickVoice();
+  if(v){u.voice=v;u.lang=v.lang}else u.lang='en-IN';
+  u.pitch=v&&MALE_V.test(v.name)?.85:.7;
+  u.rate=.94;u.volume=1;
+}
 let speakId=0;
 function speak(t,btn){
   const ss=window.speechSynthesis;if(!ss||!window.SpeechSynthesisUtterance){warn('Listening is not supported in this browser.');return}
   if(speaking===btn){speakId++;ss.cancel();speaking=null;btn.textContent='🔊 Listen';return}
   speakId++;ss.cancel();
   const id=speakId,parts=(t.replace(/[*|`#_]/g,' ').replace(/\s+/g,' ').match(/[^.!?।]+[.!?।]?/g)||[t]).map(x=>x.trim()).filter(Boolean).slice(0,40);
-  const vs=ss.getVoices(),v=vs.find(x=>/^en-IN/i.test(x.lang))||vs.find(x=>/^en/i.test(x.lang));
   speaking=btn;btn.textContent='⏹ Stop';
   let k=0;
   const next=()=>{
     if(id!==speakId){btn.textContent='🔊 Listen';return}
     if(k>=parts.length){speaking=null;btn.textContent='🔊 Listen';return}
-    const u=new SpeechSynthesisUtterance(parts[k++]);u.lang='en-IN';if(v)u.voice=v;u.onend=next;u.onerror=next;ss.speak(u);
+    const u=new SpeechSynthesisUtterance(parts[k++]);applyVoice(u);u.onend=next;u.onerror=next;ss.speak(u);
   };
   next();
 }
@@ -844,9 +857,8 @@ else{
 }
 
 /* voice mode */
-let voiceOn=false,vMuted=false,vState='',vRec=null,vVoice=0,vId=0;
+let voiceOn=false,vMuted=false,vState='',vRec=null,vId=0;
 const vo=$('vo'),orb=$('orb'),vst=$('vst');
-const vList=()=>{const a=window.speechSynthesis?speechSynthesis.getVoices():[];const f=a.filter(x=>/^en/i.test(x.lang));return f.length?f:a};
 function vSet(s,t){vState=s;orb.className=s;vst.textContent=t}
 function vStop(){const r=vRec;vRec=null;if(r){r.onend=null;try{r.abort()}catch(_){}}}
 function vListen(){
@@ -876,8 +888,7 @@ function vSpeak(t,sample){
   const next=()=>{
     if(id!==vId||!voiceOn)return;
     if(k>=parts.length){sample?vSet('','Tap the orb to start speaking.'):vListen();return}
-    const u=new SpeechSynthesisUtterance(parts[k++]);u.lang='en-IN';
-    const v=vList()[vVoice];if(v){u.voice=v;u.lang=v.lang}
+    const u=new SpeechSynthesisUtterance(parts[k++]);applyVoice(u);
     u.onend=next;u.onerror=next;ss.speak(u);
   };
   ss.cancel();next();
@@ -891,11 +902,6 @@ $('vm').onclick=e=>{
 orb.onclick=()=>{
   if(vState==='talk'){vId++;try{speechSynthesis.cancel()}catch(_){}vListen()}
   else if(vState==='')vListen();
-};
-$('vv').onclick=()=>{
-  const n=vList().length;if(!n)return;
-  vStop();vVoice=(vVoice+1)%n;
-  vSpeak('Hello, this is my new voice.',true);
 };
 
 /* restore previous chat */
