@@ -55,6 +55,8 @@ h1{font-size:clamp(26px,7vw,38px);line-height:1.15;font-weight:700;letter-spacin
 .msg .num{font-weight:600;color:var(--acc2)}
 .msg strong{font-weight:600}
 .msg .hd{font-weight:600;font-size:15.5px;margin:10px 0 4px}.msg .hd:first-child{margin-top:0}.msg ul,.msg ol{margin:6px 0;padding-left:22px;white-space:normal}.msg li{margin:3px 0}.msg a{color:var(--acc);text-decoration:underline;text-underline-offset:2px}.msg.user a{color:#fff}.msg code.mc{font:13px ui-monospace,Menlo,Consolas,monospace;background:var(--tint);padding:1px 5px;border-radius:6px}
+.genpill{display:flex;align-items:center;gap:8px;margin:0 4px 8px;padding:5px 6px 5px 12px;border-radius:999px;background:var(--tint);border:1px solid var(--line);font-size:13px;font-weight:500;width:max-content;max-width:100%}.genpill[hidden]{display:none}.genpill button{border:0;background:none;color:var(--muted);font-size:18px;width:22px;height:22px;border-radius:50%;cursor:pointer}
+.mdv{padding:10px 12px;max-height:320px;overflow:auto;white-space:normal;font-size:14px;line-height:1.55;border-top:1px solid var(--line)}
 .tools{display:flex;gap:2px;margin-top:8px;flex-wrap:wrap;white-space:normal}
 .tools button{border:0;background:none;color:var(--muted);font:500 12.5px "Outfit",system-ui,sans-serif;cursor:pointer;padding:4px 7px;border-radius:8px}
 .tools button:hover,.tools button.on{background:var(--tint);color:var(--text)}
@@ -182,6 +184,7 @@ input[type=file]{display:none}
     <div id="dock">
       <div id="note" class="note" role="status" aria-live="polite"></div>
       <form class="card" id="form">
+        <div class="genpill" id="genpill" hidden><span id="gentxt"></span><button type="button" id="gencancel" aria-label="Cancel file mode">×</button></div>
         <div class="chips" id="chips"></div>
         <div class="bar">
           <button type="button" class="circle" id="plus" aria-label="More options" aria-haspopup="true" aria-expanded="false"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -203,6 +206,8 @@ input[type=file]{display:none}
           <button type="button" id="pickReport" role="menuitem"><svg class="i" viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Report</button>
           <button type="button" id="pickCalc" role="menuitem" aria-expanded="false"><svg class="i" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M8 7h8M8 12h2M12 12h2M8 16h2M12 16h2"/></svg>Calculators</button>
           <div class="calcs" id="calcs"></div>
+          <button type="button" id="pickGen" role="menuitem" aria-expanded="false"><svg class="i" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M12 12v6M9 15h6"/></svg>Create file</button>
+          <div class="calcs" id="gens"></div>
         </div>
       </form>
       <input type="file" id="imgIn" accept="image/*" multiple>
@@ -227,8 +232,9 @@ const $=id=>document.getElementById(id);
 const app=$('app'),msgs=$('msgs'),inp=$('inp'),stopBtn=$('stop'),form=$('form'),mic=$('mic');
 const plus=$('plus'),menu=$('menu'),calcs=$('calcs'),imgIn=$('imgIn'),camIn=$('camIn'),fileIn=$('fileIn'),chips=$('chips'),note=$('note');
 const DEBUG=/[?&]debug=1/.test(location.search);
+const gens=$('gens'),genpill=$('genpill'),gentxt=$('gentxt');
 const API='/api/chat';
-let convo=[],pending=[],log=[],gen=0,controller=null,activeBot=null,busy=false,noteTimer=null,rec=null,stopped=false,lastUserEl=null,lastDraft='',lastBot=null,speaking=null,noCard=false,streamMeta={};
+let convo=[],pending=[],log=[],gen=0,controller=null,activeBot=null,busy=false,noteTimer=null,rec=null,stopped=false,lastUserEl=null,lastDraft='',lastBot=null,speaking=null,noCard=false,streamMeta={},genFormat=null,genRun=false;
 const MAX_FILES=3,MAX_B64=2700000,MAX_TOTAL_B64=3300000,MAX_PDF=2000000,MAX_CONTENT=12000,TEXT_PER_FILE=8000,MAX_TEXT_FILE=500000,REQUEST_TIMEOUT=55000;
 const KEY='rupeyantra_chat_v2',DB_NAME='rupeyantra_ai_files',DB_STORE='sessions';
 const TEXT_EXT=/\.(txt|csv|tsv|json|md|log)$/i;
@@ -244,7 +250,7 @@ inp.addEventListener('keydown',e=>{const touch=window.matchMedia&&matchMedia('(p
 inp.addEventListener('paste',e=>{const f=Array.from((e.clipboardData&&e.clipboardData.files)||[]).filter(x=>x.type.startsWith('image/'));if(f.length){e.preventDefault();addFiles(f)}});
 document.querySelectorAll('#starters [data-q]').forEach(b=>b.onclick=()=>{if(busy)return;inp.value=b.dataset.q;grow();form.requestSubmit()});
 
-function setOpen(o){menu.classList.toggle('open',o);plus.classList.toggle('on',o);plus.setAttribute('aria-expanded',String(o));if(!o){calcs.classList.remove('open');$('pickCalc').setAttribute('aria-expanded','false')}}
+function setOpen(o){menu.classList.toggle('open',o);plus.classList.toggle('on',o);plus.setAttribute('aria-expanded',String(o));if(!o){calcs.classList.remove('open');gens.classList.remove('open');$('pickCalc').setAttribute('aria-expanded','false');$('pickGen').setAttribute('aria-expanded','false')}}
 plus.onclick=e=>{e.stopPropagation();setOpen(!menu.classList.contains('open'))};
 document.addEventListener('click',e=>{if(menu.classList.contains('open')&&!menu.contains(e.target)&&!plus.contains(e.target))setOpen(false)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')setOpen(false)});
@@ -623,6 +629,7 @@ form.addEventListener('submit',e=>{
   if(busy)return;
   const text=inp.value.trim();
   if(!text&&!pending.length)return;
+  if(genFormat){if(!text)return;if(pending.length){warn('Remove attachments to create a file.');return}startGen(text);return}
   const content=buildContent(text);
   const atts=pending.filter(p=>p.kind!=='text');
   const msg={role:'user',content};
@@ -644,6 +651,7 @@ stopBtn.onclick=()=>{
   stopped=true;gen++;
   if(controller)controller.abort();
   if(activeBot&&activeBot.isConnected)activeBot.remove();
+  if(genRun){genRun=false;if(lastUserEl&&lastUserEl.isConnected)lastUserEl.remove();lastUserEl=null;if(!inp.value.trim())inp.value=lastDraft||'';grow();if(!convo.length&&!log.length&&!msgs.children.length)app.classList.remove('chatting');setBusy(false);return}
   const lastMsg=convo[convo.length-1];
   if(lastMsg&&lastMsg.role==='user'){
     convo.pop();
@@ -657,6 +665,91 @@ stopBtn.onclick=()=>{
   setBusy(false);
 };
 
+/* create file (uses /api/file; long files arrive in parts) */
+const GEN_FORMATS={md:['Report','md','text/markdown;charset=utf-8'],csv:['Sheet (CSV)','csv','text/csv;charset=utf-8'],html:['Web page','html','text/html;charset=utf-8'],txt:['Text file','txt','text/plain;charset=utf-8'],json:['JSON','json','application/json;charset=utf-8']};
+const GEN_MAX_PARTS=8;
+Object.keys(GEN_FORMATS).forEach(k=>{const b=document.createElement('button');b.type='button';b.textContent=GEN_FORMATS[k][0];b.onclick=()=>{setOpen(false);setGen(k);inp.focus()};gens.appendChild(b)});
+$('pickGen').onclick=e=>{e.stopPropagation();const o=gens.classList.toggle('open');e.currentTarget.setAttribute('aria-expanded',String(o))};
+$('gencancel').onclick=()=>setGen(null);
+function setGen(k){
+  genFormat=k||null;
+  genpill.hidden=!genFormat;
+  if(genFormat){gentxt.textContent='📄 Create file · '+GEN_FORMATS[genFormat][0];inp.placeholder='Describe the file you want…'}
+  else inp.placeholder='Ask about money…';
+}
+const fmtSize=n=>n<1024?n+' characters':(n/1024).toFixed(1)+' KB';
+function fileCard(text,fmt,name){
+  const d=document.createElement('div');d.className='code';
+  const h=document.createElement('div');h.className='h';
+  const nm=document.createElement('span');nm.textContent='📄 '+name+' · '+fmtSize(text.length);h.appendChild(nm);
+  mk(h,'Copy',b=>copyText(text,b));
+  mk(h,'⬇ Download',()=>dl(name,GEN_FORMATS[fmt][2],(fmt==='csv'?'\ufeff':'')+text));
+  const pre=document.createElement('pre'),cd=document.createElement('code');
+  cd.textContent=text.length>20000?text.slice(0,20000)+'\n…':text;pre.appendChild(cd);
+  d.appendChild(h);d.appendChild(pre);
+  let pv=null;
+  if(fmt==='html'||fmt==='md')mk(h,'👁 Preview',b=>{
+    if(pv){pv.remove();pv=null;pre.style.display='';b.textContent='👁 Preview';return}
+    if(fmt==='html'){pv=document.createElement('iframe');pv.setAttribute('sandbox','allow-scripts');pv.title='Preview';pv.srcdoc=text}
+    else{pv=document.createElement('div');pv.className='mdv';renderRich(pv,text)}
+    pre.style.display='none';b.textContent='Hide preview';d.appendChild(pv);
+  });
+  return d;
+}
+async function startGen(prompt){
+  const fmt=genFormat,info=GEN_FORMATS[fmt];
+  const my=++gen;stopped=false;controller=new AbortController();
+  const hist=convo.slice(-6).map(m=>({role:m.role,content:String(m.content||'').slice(0,1500)}));
+  app.classList.add('chatting');
+  lastUserEl=addUser(prompt,[]);lastDraft=prompt;
+  inp.value='';grow();
+  if(rec){try{rec.stop()}catch(_){}}
+  const bot=thinkingBot();activeBot=bot;setBusy(true);genRun=true;
+  const label=bot.querySelector('.t');
+  let text='',parts=0,more=false;const unverified=[];
+  try{
+    for(let part=1;part<=GEN_MAX_PARTS;part++){
+      if(my!==gen)return;
+      label.textContent='Writing your file… part '+part;
+      let to=false,r,d={};
+      const t=setTimeout(()=>{to=true;controller.abort()},REQUEST_TIMEOUT);
+      try{
+        r=await fetch('/api/file',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,format:fmt,part,tail:part>1?text.slice(-2000):undefined,history:hist}),signal:controller.signal});
+        try{d=await r.json()}catch(_){}
+      }catch(e){
+        if(to){const x=new Error('Writing the file is taking too long. Please try again.');x.fromServer=true;throw x}
+        throw e;
+      }finally{clearTimeout(t)}
+      if(my!==gen)return;
+      if(!r.ok||!d||!d.ok||typeof d.text!=='string'){const e=new Error((d&&d.message)||'Could not create the file right now. Please try again.');e.fromServer=true;throw e}
+      text+=d.text;parts=part;more=Boolean(d.truncated);
+      (Array.isArray(d.unverified)?d.unverified:[]).forEach(x=>{if(typeof x==='string'&&!unverified.includes(x))unverified.push(x)});
+      if(!more)break;
+    }
+    if(!text.trim()){const e=new Error('The file came back empty. Please try again.');e.fromServer=true;throw e}
+    setBusy(false);genRun=false;lastUserEl=null;lastBot=null;
+    const name='rupeyantra-file.'+info[1];
+    const note='Your '+info[0].toLowerCase()+' is ready.'+(parts>1?' It was written in '+parts+' parts.':'')+
+      (more?' It reached the length limit, so the end may be incomplete.':'')+
+      (unverified.length?'\n\n**Please check these figures before using the file:** '+unverified.join(', ')+'. They were not confirmed by your inputs or a calculator.':'');
+    convo.push({role:'user',content:'Create a file: '+prompt});
+    convo.push({role:'assistant',content:'I created a '+info[0].toLowerCase()+' for this request ('+text.length+' characters).'});
+    log.push({role:'user',text:'📄 '+prompt,atts:[]});
+    log.push({role:'bot',text:note});
+    save();
+    botMsg(bot,note,false);
+    bot.insertBefore(fileCard(text,fmt,name),bot.querySelector('.tools'));
+    setGen(null);down();
+  }catch(e){
+    if(stopped||my!==gen)return;
+    const msg=e&&e.fromServer?e.message:'Please check your connection and try again.';
+    setBusy(false);genRun=false;
+    showError(bot,msg,()=>{if(busy)return;bot.remove();if(lastUserEl&&lastUserEl.isConnected)lastUserEl.remove();lastUserEl=null;genFormat=fmt;startGen(prompt)});
+  }finally{
+    if(my===gen&&busy)setBusy(false);
+  }
+}
+
 /* new chat */
 $('newChat').onclick=async()=>{
   stopped=true;gen++;
@@ -664,7 +757,7 @@ $('newChat').onclick=async()=>{
   if(rec){try{rec.stop()}catch(_){}}
   if(window.speechSynthesis){speakId++;speechSynthesis.cancel()}
   if(voiceOn)$('vx').onclick();
-  convo=[];log=[];pending=[];activeBot=null;lastUserEl=null;lastBot=null;
+  convo=[];log=[];pending=[];activeBot=null;lastUserEl=null;lastBot=null;genRun=false;setGen(null);
   msgs.innerHTML='';
   app.classList.remove('chatting');
   setBusy(false);renderChips();inp.value='';grow();
@@ -763,7 +856,7 @@ grow();
 (()=>{
   const P=['Ask about money…','Calculate my EMI…','Plan a monthly SIP…','Build my budget…','Compare two loans…','Explain my statement…'];
   let i=0;
-  setInterval(()=>{if(inp.value||document.activeElement===inp||document.hidden)return;i=(i+1)%P.length;inp.placeholder=P[i];grow()},4000);
+  setInterval(()=>{if(inp.value||genFormat||document.activeElement===inp||document.hidden)return;i=(i+1)%P.length;inp.placeholder=P[i];grow()},4000);
 })();
 </script>
 </body>
