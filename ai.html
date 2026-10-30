@@ -315,17 +315,7 @@ async function copyText(t,btn){
   const old=btn.textContent;btn.textContent=ok?'Copied ✓':'Copy failed';setTimeout(()=>{if(btn.isConnected)btn.textContent=old},1800);
 }
 function mk(row,label,fn){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>fn(b);row.appendChild(b);return b}
-
-/* ===== VOICE =====
-   One natural voice from ElevenLabs through /api/tts (the API key stays on the server).
-   VOICE_ID       : paste the Voice ID of the voice you chose (the one in voice-preview.mp3).
-                    ElevenLabs > Voices > your voice > "Copy voice ID". Leave '' to use the server's default voice.
-   BROWSER_FALLBACK: false = never use the built-in browser voice (it sounds robotic).
-                    If the server voice fails, a short message is shown instead. Set true only for emergencies. */
-const VOICE_ID='';
-const BROWSER_FALLBACK=false;
-
-/* browser voice (used only when BROWSER_FALLBACK is true) */
+/* one fixed voice: a clear, deep male voice (best male voice the device has, deepened a little) */
 const MALE_V=/\b(male|rishi|prabhat|ravi|hemant|madhur|james|david|daniel|alex|fred|mark|george|guy|ryan|thomas|arthur|aaron|liam)\b/i;
 const FEMALE_V=/\b(female|heera|neerja|kalpana|veena|lekha|samantha|karen|zira|susan|hazel|moira|tessa|fiona|victoria|aria|jenny|emma|sonia|libby|google uk english female)\b/i;
 function pickVoice(){
@@ -340,10 +330,9 @@ function applyVoice(u){
   u.pitch=v&&MALE_V.test(v.name)?.85:.7;
   u.rate=.94;u.volume=1;
 }
-
+/* ===== voice: ElevenLabs through /api/tts (key stays on the server); browser voice only as a fallback ===== */
 const SILENT='data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
 const player=new Audio();let audioUnlocked=false,ttsCtl=null,ttsToken=0,ttsBadUntil=0;
-player.preload='auto';
 function unlockAudio(){if(audioUnlocked)return;audioUnlocked=true;try{player.src=SILENT;const p=player.play();if(p&&p.catch)p.catch(()=>{})}catch(_){}}
 function stopSpeech(){
   ttsToken++;
@@ -351,51 +340,17 @@ function stopSpeech(){
   try{player.pause();if(player.onended)player.onended()}catch(_){}
   try{if(window.speechSynthesis)speechSynthesis.cancel()}catch(_){}
 }
-
-/* Turn written text into something a person would actually say: amounts in lakh/crore, % as "percent",
-   no markdown, no emoji, and a pause at the end of every line so lists do not run together. */
-const r2=v=>String(Math.round(v*100)/100);
-function speakable(t){
-  let s=String(t||'')
-    .replace(/```[\s\S]*?```/g,' ')
-    .replace(/^\s*\|.*\|\s*$/gm,' ')
-    .replace(/\[([^\]\n]+)\]\(https?:[^)\s]+\)/g,'$1')
-    .replace(/https?:\/\/\S+/g,' ')
-    .replace(/[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}]/gu,'')
-    .replace(/₹\s?([\d,]+(?:\.\d+)?)(?:\s?(Cr|crore|L|lakh)\b)?/gi,(m,a,u)=>{
-      const x=parseFloat(a.replace(/,/g,''));
-      if(u)return a.replace(/,/g,'')+(/^c/i.test(u)?' crore':' lakh')+' rupees';
-      if(x>=1e7)return r2(x/1e7)+' crore rupees';
-      if(x>=1e5)return r2(x/1e5)+' lakh rupees';
-      return String(x)+' rupees';
-    })
-    .replace(/(\d)\s?%/g,'$1 percent')
-    .replace(/\bp\.?a\.?(?=[\s.,]|$)/gi,'per year')
-    .replace(/(\d),(?=\d{3}\b)/g,'$1')
-    .replace(/\s[-–—]\s/g,', ')
-    .replace(/[*|`#_>~]/g,' ');
-  s=s.split('\n').map(l=>l.replace(/^\s*(?:[-•]|\d{1,2}[.)])\s+/,'').trim()).filter(Boolean)
-    .map(l=>/[.!?।:;]$/.test(l)?l:l+'.').join(' ');
-  return s.replace(/\s+/g,' ').trim();
-}
-/* first piece is short so the voice starts fast; later pieces are longer so the tone flows naturally */
 function chunkText(t){
-  const clean=speakable(t).slice(0,2600);
-  const sents=clean.match(/[^.!?।]+[.!?।]+|[^.!?।]+$/g)||[clean],out=[];let cur='';
-  for(const x of sents){
-    const s=x.trim();if(!s)continue;
-    const lim=out.length?460:170;
-    if(cur&&(cur+' '+s).length>lim){out.push(cur);cur=s}else cur=cur?cur+' '+s:s;
-  }
+  const clean=String(t||'').replace(/```[\s\S]*?```/g,' ').replace(/^\s*\|.*\|\s*$/gm,' ').replace(/https?:\/\/\S+/g,' ')
+    .replace(/₹\s?([\d,]+(?:\.\d+)?)/g,'$1 rupees').replace(/(\d)\s?Cr\b/g,'$1 crore').replace(/(\d)\s?L\b/g,'$1 lakh')
+    .replace(/[*|`#_>]/g,' ').replace(/\s+/g,' ').trim().slice(0,1600);
+  const sents=clean.match(/[^.!?।]+[.!?।]?/g)||[clean],out=[];let cur='';
+  for(const x of sents){const s=x.trim();if(!s)continue;if(cur&&(cur+' '+s).length>380){out.push(cur);cur=s}else cur=cur?cur+' '+s:s}
   if(cur)out.push(cur);
-  return out.filter(Boolean).slice(0,8);
+  return out.filter(Boolean).slice(0,6);
 }
-async function fetchClip(text,signal,prev,next){
-  const body={text};
-  if(VOICE_ID)body.voiceId=VOICE_ID;
-  if(prev)body.previous_text=prev.slice(-300);   /* lets the server keep the same tone between pieces */
-  if(next)body.next_text=next.slice(0,300);
-  const r=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal});
+async function fetchClip(text,signal){
+  const r=await fetch('/api/tts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text}),signal});
   if(!r.ok)throw new Error('tts '+r.status);
   const b=await r.blob();if(!b.size)throw new Error('empty audio');
   return URL.createObjectURL(b);
@@ -420,26 +375,21 @@ function browserSpeak(parts,my){
     next();
   });
 }
-/* resolves 'done' or 'stopped'. The next two pieces are fetched while the current one plays, so there is no gap. */
+/* resolves 'done' or 'stopped' */
 async function speakText(text,opt){
   stopSpeech();
   const my=ttsToken,parts=chunkText(text);
   if(!parts.length)return 'done';
-  if(BROWSER_FALLBACK&&Date.now()<ttsBadUntil)return browserSpeak(parts,my);
+  if(Date.now()<ttsBadUntil)return browserSpeak(parts,my);
   ttsCtl=new AbortController();
-  const sig=ttsCtl.signal,clips=[];
-  const get=i=>{
-    if(i>=parts.length)return null;
-    if(!clips[i]){const p=fetchClip(parts[i],sig,parts[i-1],parts[i+1]);p.catch(()=>{});clips[i]=p}
-    return clips[i];
-  };
   let played=0;
   try{
-    get(0);get(1);
+    let next=fetchClip(parts[0],ttsCtl.signal);
     for(let i=0;i<parts.length;i++){
-      const url=await get(i);
+      const url=await next;
       if(my!==ttsToken){URL.revokeObjectURL(url);return 'stopped'}
-      get(i+1);get(i+2);
+      next=i+1<parts.length?fetchClip(parts[i+1],ttsCtl.signal):null;
+      if(next)next.catch(()=>{});
       if(i===0&&opt&&opt.onStart)opt.onStart();
       await playUrl(url);
       if(my!==ttsToken)return 'stopped';
@@ -448,13 +398,9 @@ async function speakText(text,opt){
     return 'done';
   }catch(e){
     if(my!==ttsToken)return 'stopped';
-    if(BROWSER_FALLBACK){
-      ttsBadUntil=Date.now()+120000;
-      if(opt&&opt.onStart)opt.onStart();
-      return browserSpeak(parts.slice(played),my);
-    }
-    warn('The voice is not available right now. Please try again in a moment.');
-    return 'done';
+    ttsBadUntil=Date.now()+120000;           /* server voice failed: use the browser voice for a while */
+    if(opt&&opt.onStart)opt.onStart();
+    return browserSpeak(parts.slice(played),my);
   }
 }
 function speak(t,btn){
