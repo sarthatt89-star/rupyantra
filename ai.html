@@ -202,7 +202,15 @@ textarea:focus,textarea:focus-visible{outline:none!important;box-shadow:none!imp
 .chip .sz{color:var(--muted);font-size:11.5px}
 .chip button{border:0;background:none;color:var(--muted);font-size:18px;width:28px;height:28px;border-radius:50%;cursor:pointer}
 input[type=file]{display:none}
-.disc{text-align:center;color:var(--muted);font-size:11.5px;line-height:1.5;padding:8px 8px calc(10px + env(safe-area-inset-bottom,0px))}
+#dock{padding-bottom:calc(4px + env(safe-area-inset-bottom,0px))}
+.discrow{display:flex;justify-content:center;padding:6px 0 2px}
+.discbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);color:var(--muted);font:500 12.5px "Outfit",system-ui,sans-serif;padding:6px 14px;border-radius:999px;cursor:pointer;box-shadow:0 1px 2px rgba(23,32,51,.06)}
+.discbtn:hover,.discbtn[aria-expanded="true"]{color:var(--text);border-color:var(--acc);background:var(--tint)}
+.discbtn svg{width:15px;height:15px}
+.discpanel{margin:0 2px 10px;padding:14px 16px;background:var(--card);border:1px solid var(--line);border-left:4px solid var(--acc2);border-radius:16px;box-shadow:var(--sh);animation:pop .18s ease both;transform-origin:bottom center}
+.discpanel[hidden]{display:none}
+.discpanel p{margin:0 0 10px;font-size:13.5px;line-height:1.6;color:var(--text)}
+.discx{border:0;background:var(--acc);color:var(--onacc);font:600 13px "Outfit",system-ui,sans-serif;padding:8px 18px;border-radius:999px;cursor:pointer}
 #vo{position:fixed;inset:0;z-index:60;background:var(--bg);display:none;flex-direction:column;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top,0px) + 16px) 16px calc(env(safe-area-inset-bottom,0px) + 24px)}
 #vo.open{display:flex}
 .vt{font-weight:600;font-size:20px;align-self:flex-start}
@@ -216,7 +224,13 @@ input[type=file]{display:none}
 .vr .circle{background:var(--card);border:1px solid var(--line)}
 .vr #vx{background:var(--text);color:var(--bg);border:0}
 .vr #vm.on{color:var(--err)}
-.info{max-width:760px;margin:0 auto;padding:48px 18px 20px;line-height:1.7}
+.info{max-width:760px;margin:0 auto;padding:18px 18px 8px;line-height:1.7}
+.info>summary.aboutbtn{list-style:none;display:flex;align-items:center;justify-content:center;gap:8px;width:max-content;max-width:100%;margin:0 auto;border:1px solid var(--line);background:var(--card);color:var(--text);font:600 14px "Outfit",system-ui,sans-serif;padding:10px 20px;border-radius:999px;cursor:pointer;box-shadow:0 1px 2px rgba(23,32,51,.06)}
+.info>summary.aboutbtn::-webkit-details-marker{display:none}
+.info>summary.aboutbtn::after{content:"▾";transition:transform .2s}
+.info[open]>summary.aboutbtn::after{transform:rotate(180deg)}
+.info>summary.aboutbtn:hover{border-color:var(--acc);background:var(--tint)}
+.info[open]>summary.aboutbtn{margin-bottom:18px}
 .info h2{font-size:clamp(20px,3.4vw,26px);letter-spacing:-.015em;margin:30px 0 8px}
 .info h3{font-size:17px;margin:20px 0 4px}
 .info p,.info li{color:var(--muted);font-size:15.5px;margin:0 0 10px}
@@ -231,6 +245,7 @@ input[type=file]{display:none}
  .side-off #side{display:flex}
  .top .brand small{display:none}
 }
+@media(max-height:760px){#welcome{justify-content:flex-start;padding-top:4px}.intro{font-size:15px;margin-bottom:14px}}
 @media(max-width:420px){.circle{width:38px;height:38px}textarea::placeholder{font-size:14px}#main{padding:0 10px}.msg{max-width:96%;font-size:14.5px}.sugg{grid-template-columns:1fr 1fr}.sc{padding:10px 11px}.sc span{display:none}}
 @keyframes orb{50%{transform:scale(1.14)}}
 @keyframes pulse{50%{transform:scale(.85);opacity:.7}}
@@ -280,6 +295,10 @@ input[type=file]{display:none}
       <div id="msgs" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Conversation"></div>
       <div id="dock">
         <div id="note" class="note" role="status" aria-live="polite"></div>
+        <div id="discPanel" class="discpanel" role="region" aria-label="Financial disclaimer" hidden>
+          <p>Rupeyantra AI provides general financial information and estimates for educational purposes. Results depend on the information and assumptions provided. Investment returns are not guaranteed. Verify important information before making financial decisions.</p>
+          <button type="button" id="discClose" class="discx">Got it</button>
+        </div>
         <form class="card" id="form">
           <div class="genpill" id="genpill" hidden><span id="gentxt"></span><button type="button" id="gencancel" aria-label="Cancel file mode">×</button></div>
           <div class="chips" id="chips" aria-label="Attached files"></div>
@@ -311,7 +330,8 @@ input[type=file]{display:none}
         <input type="file" id="imgIn" accept="image/*" multiple aria-label="Choose images">
         <input type="file" id="camIn" accept="image/*" capture="environment" aria-label="Take a photo">
         <input type="file" id="fileIn" accept=".pdf,.txt,.csv,.tsv,.json,.md,.log,application/pdf,text/plain" multiple aria-label="Choose PDF or text files">
-        <p class="disc">Rupeyantra AI provides general financial information and estimates for educational purposes. Results depend on the information and assumptions provided. Investment returns are not guaranteed. Verify important information before making financial decisions.</p>
+        
+        <div class="discrow"><button type="button" id="discBtn" class="discbtn" aria-expanded="false" aria-controls="discPanel"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>Not financial advice · Disclaimer</button></div>
       </div>
     </main>
   </div>
@@ -326,7 +346,8 @@ input[type=file]{display:none}
   </div>
 </div>
 
-<section class="info" id="about" aria-label="About Rupeyantra AI">
+<details class="info" id="about">
+  <summary class="aboutbtn">About Rupeyantra AI &amp; FAQ</summary>
   <h2>What Is Rupeyantra AI?</h2>
   <p>Rupeyantra AI is a free finance assistant for people in India. Ask about EMIs, SIPs, loans, budgets and savings in Hindi, Hinglish or English and get a clear explanation, with the calculation shown whenever numbers are involved.</p>
 
@@ -348,7 +369,7 @@ input[type=file]{display:none}
   <h3>Can it create files?</h3>
   <p>Yes. Use the plus menu, choose Create file, and pick a report, CSV sheet, simple web page, text file or JSON. Please check any figures in the file before you use it.</p>
   <a class="up" href="#app">Back to the chat</a>
-</section>
+</details>
 <footer class="foot">
   <p><a href="/">Rupeyantra home</a></p>
   <p>General information only, not financial advice.</p>
