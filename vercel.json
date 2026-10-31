@@ -4,6 +4,10 @@
       "maxDuration": 60,
       "includeFiles": "lib/**"
     },
+    "api/file.js": {
+      "maxDuration": 60,
+      "includeFiles": "lib/**"
+    },
     "api/mail-ask.js": {
       "maxDuration": 30,
       "includeFiles": "lib/**"
@@ -32,7 +36,7 @@
   "rewrites": [
     {
       "source": "/ai",
-      "destination": "/index.html"
+      "destination": "/ai.html"
     },
     {
       "source": "/admin",
