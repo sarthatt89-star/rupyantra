@@ -18,9 +18,11 @@ jobs:
 
       - name: Native C++ tests
         run: |
-          g++ -std=c++17 -O2 -Wall -Wextra -Icpp-engine/include \
-            cpp-engine/src/simulations.cpp cpp-engine/tests/test_simulations.cpp -o /tmp/ry_test
-          /tmp/ry_test
+          for t in test_core test_simulations; do
+            g++ -std=c++17 -O2 -Wall -Wextra -Icpp-engine/include -Icpp-engine/src \
+              cpp-engine/src/*.cpp cpp-engine/tests/$t.cpp -o /tmp/ry_$t
+            /tmp/ry_$t
+          done
 
       - uses: mymindstorm/setup-emsdk@v14
         with:
@@ -29,9 +31,11 @@ jobs:
       - name: Build WASM
         run: |
           mkdir -p lib/wasm
-          emcc cpp-engine/src/simulations.cpp -O3 -std=c++17 -Icpp-engine/include \
+          EXPORTS=$(grep -ho 'rupeyantra_[a-z0-9_]*' cpp-engine/include/finance.h | sort -u | sed 's/^/_/' | paste -sd, -)
+          echo "exports: $EXPORTS"
+          emcc cpp-engine/src/*.cpp -O3 -std=c++17 -Icpp-engine/include -Icpp-engine/src \
             --no-entry -s STANDALONE_WASM=1 -s ALLOW_MEMORY_GROWTH=1 \
-            -s EXPORTED_FUNCTIONS=_rupeyantra_sip_monte_carlo,_rupeyantra_result_ptr,_rupeyantra_result_len,_rupeyantra_version \
+            -s EXPORTED_FUNCTIONS="$EXPORTS" \
             -o lib/wasm/finance.wasm
           ls -l lib/wasm
 
