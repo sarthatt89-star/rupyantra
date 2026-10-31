@@ -1,0 +1,52 @@
+name: build-wasm
+
+on:
+  push:
+    paths:
+      - 'cpp-engine/**'
+      - '.github/workflows/build-wasm.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Native C++ tests
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Icpp-engine/include \
+            cpp-engine/src/simulations.cpp cpp-engine/tests/test_simulations.cpp -o /tmp/ry_test
+          /tmp/ry_test
+
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.64
+
+      - name: Build WASM
+        run: |
+          mkdir -p lib/wasm
+          emcc cpp-engine/src/simulations.cpp -O3 -std=c++17 -Icpp-engine/include \
+            --no-entry -s STANDALONE_WASM=1 -s ALLOW_MEMORY_GROWTH=1 \
+            -s EXPORTED_FUNCTIONS=_rupeyantra_sip_monte_carlo,_rupeyantra_result_ptr,_rupeyantra_result_len,_rupeyantra_version \
+            -o lib/wasm/finance.wasm
+          ls -l lib/wasm
+
+      - name: Smoke test WASM in Node
+        run: node cpp-engine/tests/wasm-smoke.js lib/wasm/finance.wasm
+
+      - name: Commit WASM to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/wasm/finance.wasm
+          if git diff --cached --quiet; then
+            echo "finance.wasm unchanged"
+          else
+            git commit -m "build: update finance.wasm"
+            git pull --rebase origin "${GITHUB_REF_NAME}"
+            git push
+          fi
