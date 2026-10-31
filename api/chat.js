@@ -55,8 +55,7 @@ const crypto = require('node:crypto');
 const { SYSTEM, DOC_RULES, LOOKUP_SYSTEM, UNVERIFIED_REPLY, verificationBlock } = require('../lib/system-prompt');
 
 // C++ engine tools (simulations, prepayment, tax, rate table). Never throws; if it cannot install, the site works as before.
-// Vercel env CPP_ENGINE=off switches these extra tools off without any code change.
-if (process.env.CPP_ENGINE !== 'off') require('../lib/cpp-integration').install();
+require('../lib/cpp-integration').install();
 
 // sys order: SYSTEM -> aaj ki tareekh -> engine hint -> router hint -> DOC_RULES -> verification -> correction
 function sys(messages, opts = {}) {
