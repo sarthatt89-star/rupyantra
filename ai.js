@@ -735,6 +735,22 @@ orb.onclick=()=>{
   else if(vState==='')vListen();
 };
 
+/* About & FAQ stays folded until asked for */
+(function(){
+  const ab=$('about');
+  document.querySelectorAll('a[href="#about"]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();ab.open=true;closeSide();ab.scrollIntoView({behavior:'smooth',block:'start'})}));
+  document.querySelectorAll('a[href="#app"]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();ab.open=false;window.scrollTo({top:0,behavior:'smooth'});inp.focus({preventScroll:true})}));
+})();
+
+/* disclaimer button: the long text opens only when asked */
+(function(){
+  const btn=$('discBtn'),panel=$('discPanel');
+  const set=o=>{panel.hidden=!o;btn.setAttribute('aria-expanded',String(o));if(o){panel.scrollIntoView({block:'nearest'});$('discClose').focus()}else btn.focus()};
+  btn.onclick=()=>set(panel.hidden);
+  $('discClose').onclick=()=>set(false);
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!panel.hidden)set(false)});
+})();
+
 /* restore saved chats */
 async function restore(){
   let snap=null;
