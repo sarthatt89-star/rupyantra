@@ -31,6 +31,26 @@ const APPROVED = Dict{String,NamedTuple}(
         required = (:series,),
         optional = (),
     ),
+    "optimize_portfolio" => (
+        fn = optimize_portfolio,
+        required = (:expected_returns, :volatilities),
+        optional = (:correlations, :objective, :risk_free_rate, :target_return, :min_weight, :max_weight),
+    ),
+    "efficient_frontier" => (
+        fn = efficient_frontier,
+        required = (:expected_returns, :volatilities),
+        optional = (:correlations, :points, :min_weight, :max_weight, :risk_free_rate),
+    ),
+    "goal_plan" => (
+        fn = goal_plan,
+        required = (:goal_amount, :years, :annual_return),
+        optional = (:current_savings, :inflation, :goal_in_todays_money, :annual_volatility, :target_probability, :simulations, :seed),
+    ),
+    "goal_sensitivity" => (
+        fn = goal_sensitivity,
+        required = (:goal_amount, :returns, :years_list),
+        optional = (:current_savings,),
+    ),
 )
 
 const MAX_REQUEST_BYTES = 200_000
