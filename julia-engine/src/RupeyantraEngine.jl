@@ -12,9 +12,11 @@ using JSON
 include("numerical_engine.jl")
 include("simulation.jl")
 include("portfolio.jl")
+include("optimization.jl")
 include("api.jl")
 
 export sip_monte_carlo, lumpsum_monte_carlo, sip_scenarios, sip_future_value,
-       portfolio_analysis, portfolio_compare, correlation_matrix, handle_request, APPROVED, LIMITS
+       portfolio_analysis, portfolio_compare, correlation_matrix,
+       optimize_portfolio, efficient_frontier, goal_plan, goal_sensitivity, handle_request, APPROVED, LIMITS
 
 end # module
