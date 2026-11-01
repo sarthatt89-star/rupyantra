@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - 'cpp-engine/**'
+      - 'lib/cpp-*.js'
+      - 'tests/cpp-*.test.js'
       - '.github/workflows/build-wasm.yml'
   workflow_dispatch:
 
@@ -24,6 +26,16 @@ jobs:
             /tmp/ry_$t
           done
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: C++ vs JavaScript calculators (native build, 1,800+ random cases)
+        run: |
+          g++ -std=c++17 -O2 -Wall -Wextra -Icpp-engine/include -Icpp-engine/src \
+            cpp-engine/src/*.cpp cpp-engine/tests/cli.cpp -o /tmp/ry_cli
+          RY_CLI=/tmp/ry_cli node --test tests/cpp-vs-js.test.js
+
       - uses: mymindstorm/setup-emsdk@v14
         with:
           version: 3.1.64
@@ -41,6 +53,12 @@ jobs:
 
       - name: Smoke test WASM in Node
         run: node cpp-engine/tests/wasm-smoke.js lib/wasm/finance.wasm
+
+      - name: WASM vs JavaScript calculators and bridge tests
+        run: node --test tests/cpp-vs-js.test.js tests/cpp-bridge.test.js tests/cpp-tools.test.js
+
+      - name: Speed (JS vs WASM, for the record)
+        run: node cpp-engine/tests/bench.js
 
       - name: Commit WASM to repo
         run: |
