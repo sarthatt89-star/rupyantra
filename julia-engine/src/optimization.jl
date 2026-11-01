@@ -7,7 +7,7 @@
 # is solved with accelerated projected gradient (FISTA) on the box-simplex; every special objective is built from it:
 #   gamma = 0              -> minimum variance
 #   gamma bisected         -> minimum variance for a target return
-#   gamma scanned          -> efficient frontier and maximum Sharpe ratio (Sharpe is unimodal along the frontier)
+#   gamma scanned          -> efficient frontier and maximum Sharpe ratio (grid scan, then local refinement)
 
 const MAX_OPT_ASSETS = 20
 const OBJECTIVES = ("min_variance", "max_sharpe", "target_return")
@@ -127,23 +127,41 @@ function _optimal_weights(objective, S, mu, rf, lo, hi, target)
         maximum(mu) > rf || throw(InvalidInput("no asset has an expected return above the risk-free rate"))
         sharpe(w) = (v = sqrt(max(w' * S * w, 0.0)); v > 0 ? (sum(w .* mu) - rf) / v : -Inf)
         g0 = _gamma_scale(S, mu)
-        a, b = log(g0 * 1e-4), log(g0 * 1e4)
+        # Sharpe is flat (a plateau) at both ends of the gamma range, so a plain ternary search can get lost there.
+        # Scan a fine grid first, then refine around the best grid point, where the curve is a single hill.
+        grid = [g0 * 10.0^e for e in range(-4, 4; length = 161)]
+        best_w, best_s, best_g, best_k = wmin, sharpe(wmin), 0.0, 0
         w = wmin
-        for _ in 1:70                       # ternary search on log(gamma)
-            m1 = a + (b - a) / 3
-            m2 = b - (b - a) / 3
-            w1 = _solve(S, mu, exp(m1), lo, hi, w)
-            w2 = _solve(S, mu, exp(m2), lo, hi, w)
-            if sharpe(w1) < sharpe(w2)
-                a = m1
-            else
-                b = m2
+        for (k, g) in enumerate(grid)
+            w = _solve(S, mu, g, lo, hi, w)
+            s = sharpe(w)
+            if s > best_s
+                best_w, best_s, best_g, best_k = w, s, g, k
             end
-            w = sharpe(w1) >= sharpe(w2) ? w1 : w2
         end
-        gbest = exp((a + b) / 2)
-        wbest = _solve(S, mu, gbest, lo, hi, w)
-        return sharpe(wbest) >= sharpe(wmin) ? (wbest, gbest) : (wmin, 0.0)
+        if best_k > 0
+            a = log(grid[max(best_k - 1, 1)])
+            b = log(grid[min(best_k + 1, length(grid))])
+            w = best_w
+            for _ in 1:60
+                m1 = a + (b - a) / 3
+                m2 = b - (b - a) / 3
+                w1 = _solve(S, mu, exp(m1), lo, hi, w)
+                w2 = _solve(S, mu, exp(m2), lo, hi, w)
+                s1, s2 = sharpe(w1), sharpe(w2)
+                if s1 < s2
+                    a = m1
+                else
+                    b = m2
+                end
+                cw, cs, cg = s1 >= s2 ? (w1, s1, exp(m1)) : (w2, s2, exp(m2))
+                if cs > best_s
+                    best_w, best_s, best_g = cw, cs, cg
+                end
+                w = best_w
+            end
+        end
+        return best_w, best_g
     end
 end
 
