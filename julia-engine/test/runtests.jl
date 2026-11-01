@@ -128,7 +128,7 @@ end
 
     @test JSON.parse(handle_request("not json"))["ok"] == false
     @test JSON.parse(handle_request("[1,2,3]"))["code"] == "BAD_REQUEST"
-    @test JSON.parse(handle_request("x"^300_000))["code"] == "TOO_LARGE"
+        @test JSON.parse(handle_request("x"^300_000))["code"] == "TOO_LARGE"
     # an error never leaks internals
     @test !occursin("Stacktrace", handle_request("not json"))
 end
@@ -141,5 +141,5 @@ end
     end
     @test true
 end
-s
 include("portfolio_tests.jl")
+include("optimization_tests.jl")
