@@ -16,9 +16,24 @@ const APPROVED = Dict{String,NamedTuple}(
         required = (:monthly_amount, :months, :returns, :annual_volatility),
         optional = (:simulations, :seed, :goal_amount),
     ),
+    "portfolio_analysis" => (
+        fn = portfolio_analysis,
+        required = (:weights, :expected_returns, :volatilities),
+        optional = (:correlations, :risk_free_rate),
+    ),
+    "portfolio_compare" => (
+        fn = portfolio_compare,
+        required = (:portfolios, :expected_returns, :volatilities),
+        optional = (:correlations, :risk_free_rate),
+    ),
+    "correlation_matrix" => (
+        fn = correlation_matrix,
+        required = (:series,),
+        optional = (),
+    ),
 )
 
-const MAX_REQUEST_BYTES = 20_000
+const MAX_REQUEST_BYTES = 200_000
 
 """
 handle_request(json_text) -> JSON text. Always returns {"ok":true,"engine":"julia",...} or {"ok":false,"code":...,"error":...}.
