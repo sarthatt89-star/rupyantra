@@ -144,3 +144,4 @@ end
 
 include("portfolio_tests.jl")
 include("optimization_tests.jl")
+include("scenario_tests.jl")
