@@ -81,13 +81,16 @@ end
 
 @testset "scenario JSON entry point" begin
     a = req("matrix_operations", Dict("operation" => "determinant", "a" => [[4, 3], [6, 3]]))
-    @test a["ok"] == true && a["engine"] == "julia" && a["result"]["result"] ≈ -6.0
+    @test a["ok"] == true && a["engine"] == "julia"
+    @test a["result"]["result"] ≈ -6.0
     b = req("stress_scenarios", Dict("weights" => [0.5, 0.3, 0.2], "scenarios" => [Dict("name" => "crash", "shocks" => [-30, -10, 5])]))
-    @test b["ok"] == true && b["result"]["worst_change_percent"] ≈ -17.0
+    @test b["ok"] == true
+    @test b["result"]["worst_change_percent"] ≈ -17.0
     c = req("numerical_checks", Dict("monthly_amount" => 10000, "annual_return" => 12, "months" => 120))
     @test c["ok"] == true && c["result"]["agree"] == true
     d = req("volatility_stress", Dict("weights" => [0.5, 0.5], "volatilities" => [10, 20], "correlation_blend" => 1))
-    @test d["ok"] == true && d["result"]["stressed_volatility_percent"] ≈ 15.0 rtol = 1e-12
+    @test d["ok"] == true
+    @test d["result"]["stressed_volatility_percent"] ≈ 15.0 rtol = 1e-12
     e = req("matrix_operations", Dict("operation" => "inverse", "a" => [[1, 2], [2, 4]]))
     @test e["ok"] == false && e["code"] == "INVALID_INPUT"
 end
