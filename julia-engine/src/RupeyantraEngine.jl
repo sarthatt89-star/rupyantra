@@ -13,10 +13,12 @@ include("numerical_engine.jl")
 include("simulation.jl")
 include("portfolio.jl")
 include("optimization.jl")
+include("scenarios.jl")
 include("api.jl")
 
 export sip_monte_carlo, lumpsum_monte_carlo, sip_scenarios, sip_future_value,
        portfolio_analysis, portfolio_compare, correlation_matrix,
-       optimize_portfolio, efficient_frontier, goal_plan, goal_sensitivity, handle_request, APPROVED, LIMITS
+       optimize_portfolio, efficient_frontier, goal_plan, goal_sensitivity,
+       matrix_operations, numerical_checks, stress_scenarios, volatility_stress, handle_request, APPROVED, LIMITS
 
 end # module
