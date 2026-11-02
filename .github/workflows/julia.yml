@@ -4,7 +4,9 @@ on:
   push:
     paths:
       - 'julia-engine/**'
+      - 'lib/julia-bridge.js'
       - 'tests/julia-vs-cpp.test.js'
+      - 'tests/julia-bridge.test.js'
       - '.github/workflows/julia.yml'
   workflow_dispatch:
 
@@ -40,6 +42,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: JS bridge tests (offline fake service + real Julia)
+        run: RY_JULIA=julia node --test tests/julia-bridge.test.js
 
       - name: Julia vs C++ (WASM) parity
         run: |
