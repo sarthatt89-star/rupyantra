@@ -51,6 +51,26 @@ const APPROVED = Dict{String,NamedTuple}(
         required = (:goal_amount, :returns, :years_list),
         optional = (:current_savings,),
     ),
+    "matrix_operations" => (
+        fn = matrix_operations,
+        required = (:operation, :a),
+        optional = (:b,),
+    ),
+    "numerical_checks" => (
+        fn = numerical_checks,
+        required = (:monthly_amount, :annual_return, :months),
+        optional = (),
+    ),
+    "stress_scenarios" => (
+        fn = stress_scenarios,
+        required = (:weights, :scenarios),
+        optional = (:portfolio_value,),
+    ),
+    "volatility_stress" => (
+        fn = volatility_stress,
+        required = (:weights, :volatilities),
+        optional = (:correlations, :volatility_multiplier, :correlation_blend),
+    ),
 )
 
 const MAX_REQUEST_BYTES = 200_000
