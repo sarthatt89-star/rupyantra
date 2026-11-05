@@ -1,0 +1,46 @@
+name: sql-engine
+
+on:
+  push:
+    paths:
+      - 'sql-engine/**'
+      - '.github/workflows/sql.yml'
+  workflow_dispatch:
+
+jobs:
+  sql:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: ci-only-password
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PostgreSQL client and server versions
+        run: psql --version && psql -X -At -c 'select version()'
+
+      - name: Database tests (schema, integrity, permissions, queries, performance, migrations, concurrency, backup and restore)
+        shell: bash
+        run: |
+          set +e
+          bash sql-engine/tests/run_all.sh 2>&1 | tee sql-test.log
+          code=${PIPESTATUS[0]}
+          echo "================ FAILURE SUMMARY (short) ================"
+          grep -nE "^FAILED|^ERROR|FAILED:" sql-test.log | head -30
+          grep -E "^FAILED|FAILED:" sql-test.log | head -5 | while IFS= read -r line; do echo "::error::${line}"; done
+          grep -E "ALL PASSED|checks passed" sql-test.log | tail -12
+          exit $code
