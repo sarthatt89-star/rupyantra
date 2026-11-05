@@ -2,13 +2,13 @@
 \set ON_ERROR_STOP on
 
 SELECT ry_test.ok(
-  (SELECT array_agg(t ORDER BY t) FROM unnest(ARRAY[
+  (SELECT array_agg(t ORDER BY t COLLATE "C") FROM unnest(ARRAY[
     'users','user_profiles','user_preferences','user_sessions','user_activity',
     'financial_records','transactions','loan_records','investment_records','savings_records','savings_contributions','financial_reports',
     'calculator_history','emi_history','sip_history','fd_history','tax_history','calculation_metadata',
     'chat_sessions','chat_messages','chat_feedback','ai_execution_logs','engine_execution_history',
     'audit_logs','retention_policies','schema_migrations']) t)
-  = (SELECT array_agg(tablename::text ORDER BY tablename) FROM pg_tables WHERE schemaname = 'app'),
+  = (SELECT array_agg(tablename::text ORDER BY tablename::text COLLATE "C") FROM pg_tables WHERE schemaname = 'app'),
   'exactly the expected 26 tables exist in schema app');
 
 SELECT ry_test.ok(NOT EXISTS (SELECT 1 FROM pg_tables t WHERE t.schemaname = 'app'
