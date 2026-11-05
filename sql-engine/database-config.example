@@ -1,0 +1,27 @@
+# sql-engine/database-config.example  --  a TEMPLATE. Copy it somewhere OUTSIDE the repository (for example your host's secret manager) and fill it in.
+# Never commit real values. The real file must never be readable by the web server's public folders or by frontend code.
+
+# The administrator: used only by a person to run migrations, backups and retention. The application never receives it.
+RY_ADMIN_URL=postgresql://ry_admin@db.example.internal:5432/rupeyantra?sslmode=verify-full
+# Put the password in ~/.pgpass (mode 600) or in PGPASSWORD for the one command that needs it; keep it out of the URL and out of shell history.
+
+# The application login (a member of the group role ry_app): the only database credential the API gets.
+DATABASE_URL=postgresql://ry_login_app@db.example.internal:5432/rupeyantra?sslmode=verify-full
+# Reporting and audit logins (members of ry_readonly / ry_auditor), if you create them:
+# RY_REPORT_URL=postgresql://ry_login_report@db.example.internal:5432/rupeyantra?sslmode=verify-full
+# RY_AUDIT_URL=postgresql://ry_login_audit@db.example.internal:5432/rupeyantra?sslmode=verify-full
+
+# sslmode=verify-full makes the connection encrypted AND checks the server's identity. Use it for any database that is not on the same machine.
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Creating the login users (run as the administrator, once, after `apply.sh up`). Passwords are generated here and never written in a file:
+#
+#   APP_PW="$(openssl rand -base64 24)"
+#   psql "$RY_ADMIN_URL" -v pw="$APP_PW" <<'SQL'
+#   CREATE ROLE ry_login_app LOGIN PASSWORD :'pw' IN ROLE ry_app;
+#   SQL
+#   psql "$RY_ADMIN_URL" -X -f schema/database-config.sql      # re-run: gives the new login its timeouts (10 s statements, 5 s locks)
+#   echo "$APP_PW"                                              # copy it into the secret manager now, then clear your terminal
+#
+# Same for reporting (IN ROLE ry_readonly) and audit (IN ROLE ry_auditor). Reporting and audit logins are read-only by default.
+# ---------------------------------------------------------------------------------------------------------------------
