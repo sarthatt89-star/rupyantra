@@ -2,15 +2,18 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const app=$('app'),msgs=$('msgs'),inp=$('inp'),stopBtn=$('stop'),form=$('form'),mic=$('mic');
-const plus=$('plus'),menu=$('menu'),calcs=$('calcs'),imgIn=$('imgIn'),camIn=$('camIn'),fileIn=$('fileIn'),chips=$('chips'),note=$('note');
+const plus=$('plus'),menu=$('menu'),imgIn=$('imgIn'),camIn=$('camIn'),fileIn=$('fileIn'),chips=$('chips'),note=$('note');
 const DEBUG=/[?&]debug=1/.test(location.search);
-const gens=$('gens'),genpill=$('genpill'),gentxt=$('gentxt'),hist=$('hist'),histBtn=$('histBtn'),scrim=$('scrim');
+const gens=$('gens'),genpill=$('genpill'),gentxt=$('gentxt');
 const API='/api/chat';
+/* Session id: chat server ko follow-up sawal (jaise "ab rate 9% kar do") yaad rakhne ke liye. Sirf ek random id, koi personal data nahi. */
+function newSid(){try{const b=new Uint8Array(18);crypto.getRandomValues(b);return btoa(String.fromCharCode.apply(null,b)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}catch(_){return null}}
+function rotateSid(){const n=newSid();if(!n)return;SID=n;try{sessionStorage.setItem('rupeyantra_sid',n)}catch(_){}}
+let SID=null;try{SID=sessionStorage.getItem('rupeyantra_sid');if(!SID){SID=newSid();if(SID)sessionStorage.setItem('rupeyantra_sid',SID)}}catch(_){SID=SID||newSid()}
 let convo=[],pending=[],log=[],gen=0,controller=null,activeBot=null,busy=false,noteTimer=null,rec=null,stopped=false,lastUserEl=null,lastDraft='',lastBot=null,speaking=null,noCard=false,streamMeta={},genFormat=null,genRun=false;
 const MAX_FILES=3,MAX_B64=2700000,MAX_TOTAL_B64=3300000,MAX_PDF=2000000,MAX_CONTENT=12000,TEXT_PER_FILE=8000,MAX_TEXT_FILE=500000,REQUEST_TIMEOUT=55000;
-const KEY2='rupeyantra_chat_v2',KEY3='rupeyantra_chats_v3',DB_NAME='rupeyantra_ai_files',DB_STORE='sessions',MAX_CHATS=30,PLACEHOLDER='Aapka agla sawal kya hai?';
+const PLACEHOLDER='Aapka agla sawal kya hai?';
 const TEXT_EXT=/\.(txt|csv|tsv|json|md|log)$/i;
-const FILE_BLOCK=/\[FILE: [^\]\n]{0,120}\][\s\S]*?(?:\[FILE END\]|$)/g;
 
 function refresh(){form.classList.toggle('has-text',inp.value.trim().length>0||pending.length>0)}
 function grow(){inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,200)+'px';refresh()}
@@ -22,7 +25,7 @@ inp.addEventListener('keydown',e=>{const touch=window.matchMedia&&matchMedia('(p
 inp.addEventListener('paste',e=>{const f=Array.from((e.clipboardData&&e.clipboardData.files)||[]).filter(x=>x.type.startsWith('image/'));if(f.length){e.preventDefault();addFiles(f)}});
 document.querySelectorAll('#starters [data-q]').forEach(b=>b.onclick=()=>{if(busy)return;inp.value=b.dataset.q;grow();form.requestSubmit()});
 
-function setOpen(o){menu.classList.toggle('open',o);plus.classList.toggle('on',o);plus.setAttribute('aria-expanded',String(o));if(!o){calcs.classList.remove('open');gens.classList.remove('open');$('pickCalc').setAttribute('aria-expanded','false');$('pickGen').setAttribute('aria-expanded','false')}}
+function setOpen(o){menu.classList.toggle('open',o);plus.classList.toggle('on',o);plus.setAttribute('aria-expanded',String(o));if(!o){gens.classList.remove('open');$('pickGen').setAttribute('aria-expanded','false')}}
 plus.onclick=e=>{e.stopPropagation();setOpen(!menu.classList.contains('open'))};
 document.addEventListener('click',e=>{if(menu.classList.contains('open')&&!menu.contains(e.target)&&!plus.contains(e.target))setOpen(false)});
 document.addEventListener('keydown',e=>{if(e.key==='Escape')setOpen(false)});
@@ -30,34 +33,13 @@ $('pickPhoto').onclick=()=>imgIn.click();
 $('pickFile').onclick=()=>fileIn.click();
 $('pickText').onclick=()=>{if(!inp.value.trim())inp.value='Please explain this text:\n';grow();inp.focus();inp.setSelectionRange(inp.value.length,inp.value.length)};
 $('pickCam').onclick=()=>{setOpen(false);camIn.click()};
-$('pickReport').onclick=()=>{setOpen(false);inp.value='Create a short report of this conversation.';grow();inp.focus()};
-$('pickCalc').onclick=e=>{e.stopPropagation();const o=calcs.classList.toggle('open');e.currentTarget.setAttribute('aria-expanded',String(o))};
 [imgIn,camIn,fileIn].forEach(el=>el.onchange=()=>{const f=Array.from(el.files);el.value='';addFiles(f)});
 
-/* storage: many chats, kept only in this browser */
-function openDB(){return new Promise((resolve,reject)=>{if(!('indexedDB'in window)){reject(new Error('IndexedDB unavailable'));return}const r=indexedDB.open(DB_NAME,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains(DB_STORE))r.result.createObjectStore(DB_STORE)};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
-async function dbPut(key,value){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).put(value,key);tx.oncomplete=()=>{db.close();resolve()};tx.onerror=()=>{db.close();reject(tx.error)}})}
-async function dbGet(key){const db=await openDB();return new Promise((resolve,reject)=>{const tx=db.transaction(DB_STORE,'readonly'),r=tx.objectStore(DB_STORE).get(key);r.onsuccess=()=>{db.close();resolve(r.result||null)};r.onerror=()=>{db.close();reject(r.error)}})}
-async function dbDelete(key){try{const db=await openDB();await new Promise((resolve,reject)=>{const tx=db.transaction(DB_STORE,'readwrite');tx.objectStore(DB_STORE).delete(key);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)});db.close()}catch(_){}}
-const newId=()=>'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-let chats=[],cur={id:newId()},saveQueue=Promise.resolve();
-const cleanFile=t=>String(t||'').replace(FILE_BLOCK,'[file content not saved]');
-function titleOf(l){const u=l.find(x=>x.role==='user'),t=u?String(u.text||'').replace(/^📄\s*/,'').replace(/\s+/g,' ').trim():'';return (t||'New chat').slice(0,48)}
-function save(){
-  const i=chats.findIndex(c=>c.id===cur.id);
-  if(log.length){
-    const rec={id:cur.id,title:titleOf(log),t:Date.now(),log:log.slice(-60),history:convo.slice(-40).map(m=>({role:m.role,content:cleanFile(m.content)}))};
-    if(i>=0)chats[i]=rec;else chats.unshift(rec);
-    chats.sort((a,b)=>b.t-a.t);chats=chats.slice(0,MAX_CHATS);
-  }else if(i>=0)chats.splice(i,1);
-  renderHist();
-  const snap={chats:chats,savedAt:Date.now()};
-  saveQueue=saveQueue.then(()=>dbPut(KEY3,snap)).catch(()=>{
-    try{localStorage.setItem(KEY3,JSON.stringify({chats:chats.slice(0,10).map(c=>({id:c.id,title:c.title,t:c.t,history:c.history.slice(-20),log:c.log.slice(-30).map(l=>({role:l.role,text:l.text,atts:(l.atts||[]).map(a=>({name:a.name,thumb:null}))}))}))}))}catch(_){}
-  });
-}
-async function wipe(){chats=[];try{await saveQueue}catch(_){}try{[KEY3,KEY2,'rupeyantra_chat_v1'].forEach(k=>localStorage.removeItem(k))}catch(_){}await dbDelete(KEY3);await dbDelete(KEY2)}
-const validChat=c=>c&&typeof c.id==='string'&&Array.isArray(c.log)&&c.log.length>0;
+/* Chat history ab save nahi hoti. Purane version ka bacha hua data ek baar browser se mita diya jaata hai. */
+(function purgeOldHistory(){
+  try{if(localStorage.getItem('rupeyantra_hist_purged')==='1')return;['rupeyantra_chat_v1','rupeyantra_chat_v2','rupeyantra_chats_v3'].forEach(k=>localStorage.removeItem(k));localStorage.setItem('rupeyantra_hist_purged','1')}catch(_){}
+  try{if('indexedDB'in window)indexedDB.deleteDatabase('rupeyantra_ai_files')}catch(_){}
+})();
 
 /* downloads */
 function dl(name,mime,data){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:mime}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
@@ -203,7 +185,6 @@ function toolCard(k){
   d.appendChild(row);msgs.appendChild(d);
   app.classList.add('chatting');down();
 }
-Object.keys(TOOLS).forEach(k=>{const b=document.createElement('button');b.type='button';const mm=/^(\S+)\s+(.*)$/.exec(TOOLS[k].t)||['','',TOOLS[k].t];const e=document.createElement('span');e.className='ce';e.textContent=mm[1];const nm=document.createElement('span');nm.textContent=mm[2].replace(/ Calculator$/,'');b.appendChild(e);b.appendChild(nm);b.onclick=()=>{setOpen(false);toolCard(k)};calcs.appendChild(b)});
 
 /* messages UI */
 function add(role,text){const d=document.createElement('div');d.className='msg '+role;d.textContent=text;msgs.appendChild(d);down();return d}
@@ -249,6 +230,7 @@ function botMsg(bot,text,animate,extra){
     const dn=mk(tools,'👎',()=>{const o=dn.getAttribute('aria-pressed')!=='true';dn.setAttribute('aria-pressed',String(o));up.setAttribute('aria-pressed','false');if(o)warn('Thanks for the feedback. Please check important figures yourself.')});
     up.setAttribute('aria-label','Good answer');dn.setAttribute('aria-label','Poor answer');up.setAttribute('aria-pressed','false');dn.setAttribute('aria-pressed','false');
     if(extra&&extra.verified){const v=document.createElement('div');v.className='vf';v.textContent='✓ Verified by calculator';bot.appendChild(v)}
+    if(extra&&Array.isArray(extra.assumptions)){const al=extra.assumptions.filter(x=>typeof x==='string'&&x).slice(0,8);if(al.length){const dt=document.createElement('details');dt.className='am';const sm=document.createElement('summary');sm.textContent='How this was calculated';dt.appendChild(sm);const ul=document.createElement('ul');al.forEach(x=>{const li=document.createElement('li');li.textContent=x.slice(0,300);ul.appendChild(li)});dt.appendChild(ul);bot.appendChild(dt)}}
     bot.appendChild(tools);
     if(extra&&Array.isArray(extra.options)&&extra.options.length){
       const o=document.createElement('div');o.className='opts';
@@ -275,7 +257,7 @@ function botMsg(bot,text,animate,extra){
 function regen(bot){
   if(busy||bot!==lastBot||!convo.length||convo[convo.length-1].role!=='assistant')return;
   convo.pop();if(log.length&&log[log.length-1].role==='bot')log.pop();
-  bot.remove();lastBot=null;save();send();
+  bot.remove();lastBot=null;send();
 }
 
 /* rich replies */
@@ -424,6 +406,14 @@ async function readStream(r,bot,my){
   if(raf)cancelAnimationFrame(raf);
   return acc.trim();
 }
+function friendly(status){
+  if(status===429)return 'Too many requests right now. Please wait a minute and try again.';
+  if(status===413)return 'That message or file is too large. Please shorten it and try again.';
+  if(status===401||status===403)return 'This request was not allowed. Please refresh the page and try again.';
+  if(status===404)return 'The assistant is not available at the moment. Please try again later.';
+  if(status>=500)return 'The assistant is busy or restarting. Please try again in about 30 seconds.';
+  return 'No response right now. Please try again.';
+}
 async function send(){
   const my=++gen;
   stopped=false;
@@ -435,7 +425,7 @@ async function send(){
   try{
     const last=convo.length-1;
     const payload=convo.map((m,i)=>{const o={role:m.role,content:m.content};if(i===last&&m.attachments)o.attachments=m.attachments;return o});
-    const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','Accept':'text/event-stream, application/json;q=0.9'},body:JSON.stringify({messages:payload}),signal:controller.signal});
+    const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','Accept':'text/event-stream, application/json;q=0.9'},body:JSON.stringify(SID?{messages:payload,sessionId:SID}:{messages:payload}),signal:controller.signal});
     let reply='',streamed=false;
     if(r.ok&&r.body&&(r.headers.get('content-type')||'').includes('text/event-stream')){
       streamed=true;
@@ -445,7 +435,7 @@ async function send(){
       try{serverData=await r.json()}catch(_){}
       reply=serverData&&typeof serverData.reply==='string'?serverData.reply.trim():'';
       if(!r.ok||!reply){
-        const e=new Error((serverData&&serverData.message)||'No response right now. Please try again.');
+        const e=new Error((serverData&&serverData.message)||friendly(r.status));
         e.fromServer=true;throw e;
       }
     }
@@ -456,15 +446,15 @@ async function send(){
     lastUserEl=null;
     convo.push({role:'assistant',content:reply});
     log.push({role:'bot',text:reply});
-    save();
+    
     lastBot=bot;
-    botMsg(bot,reply,!streamed,{verified:serverData.verified===true,options:serverData.options});
+    botMsg(bot,reply,!streamed,{verified:serverData.verified===true,options:serverData.options,assumptions:serverData.assumptions});
     if(voiceOn)vSpeak(reply);
     const hit=INTENT.find(x=>x[0].test(asked));
     if(hit&&!skipCard)toolCard(hit[1]);
   }catch(e){
     if(stopped||my!==gen)return;
-    let msg=e&&e.fromServer?e.message:timedOut?'The response is taking too long. Please try again.':'Please check your connection and try again.';
+    let msg=e&&e.fromServer?e.message:timedOut?'The response is taking too long. Please try again in a moment.':(navigator.onLine===false?'You seem to be offline. Please check your internet connection and try again.':'Could not reach the server. Please check your connection and try again.');
     if(DEBUG){msg+='\n['+(e&&e.message||'')+']'+(serverData&&serverData.debug?'\n'+JSON.stringify(serverData.debug):'')}
     setBusy(false);
     showError(bot,msg,()=>{if(busy)return;bot.remove();send()});
@@ -493,7 +483,7 @@ form.addEventListener('submit',e=>{
   pending=[];renderChips();
   inp.value='';grow();
   if(rec){try{rec.stop()}catch(_){}}
-  save();
+  
   send();
 });
 
@@ -510,7 +500,7 @@ stopBtn.onclick=()=>{
     if(lastUserEl&&lastUserEl.isConnected)lastUserEl.remove();
     lastUserEl=null;
     if(!inp.value.trim())inp.value=lastDraft||'';
-    grow();save();
+    grow();
     if(!convo.length&&!log.length&&!msgs.children.length)app.classList.remove('chatting');
   }
   setBusy(false);
@@ -587,7 +577,7 @@ async function startGen(prompt){
     convo.push({role:'assistant',content:'I created a '+info[0].toLowerCase()+' for this request ('+text.length+' characters).'});
     log.push({role:'user',text:'📄 '+prompt,atts:[]});
     log.push({role:'bot',text:note});
-    save();
+    
     botMsg(bot,note,false);
     bot.insertBefore(fileCard(text,fmt,name),bot.querySelector('.tools'));
     setGen(null);down();
@@ -601,29 +591,7 @@ async function startGen(prompt){
   }
 }
 
-/* sidebar + chats */
-const mobile=()=>!!(window.matchMedia&&matchMedia('(max-width:859px)').matches);
-function sideOpen(){return mobile()?app.classList.contains('side-open'):!app.classList.contains('side-off')}
-function syncSide(){histBtn.setAttribute('aria-expanded',String(sideOpen()))}
-function closeSide(){if(mobile()){app.classList.remove('side-open');syncSide()}}
-histBtn.onclick=()=>{if(mobile())app.classList.toggle('side-open');else app.classList.toggle('side-off');syncSide()};
-scrim.onclick=closeSide;
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSide()});
-if(window.matchMedia)matchMedia('(max-width:859px)').addEventListener&&matchMedia('(max-width:859px)').addEventListener('change',()=>{app.classList.remove('side-open');syncSide()});
-syncSide();
-function renderHist(){
-  hist.textContent='';
-  if(!chats.length){const p=document.createElement('li');p.className='hempty';p.textContent='Your chats will appear here.';hist.appendChild(p);return}
-  chats.forEach(c=>{
-    const li=document.createElement('li');if(c.id===cur.id)li.className='on';
-    const b=document.createElement('button');b.type='button';b.className='ot';b.textContent=c.title||'New chat';b.title=c.title||'';
-    if(c.id===cur.id)b.setAttribute('aria-current','true');
-    b.onclick=()=>{if(c.id!==cur.id)openChat(c.id);closeSide()};
-    const x=document.createElement('button');x.type='button';x.className='dx';x.textContent='×';x.setAttribute('aria-label','Delete chat: '+(c.title||'New chat'));
-    x.onclick=()=>deleteChat(c.id);
-    li.appendChild(b);li.appendChild(x);hist.appendChild(li);
-  });
-}
+/* new chat */
 function resetView(){
   stopped=true;gen++;
   if(controller)controller.abort();
@@ -635,36 +603,24 @@ function resetView(){
   app.classList.remove('chatting');
   setBusy(false);renderChips();inp.value='';grow();
 }
-function openChat(id){
-  const c=chats.find(x=>x.id===id);if(!c)return;
-  resetView();cur={id:c.id};
-  log=c.log.filter(l=>l&&(l.role==='user'||l.role==='bot')&&typeof l.text==='string');
-  convo=(Array.isArray(c.history)?c.history:[]).filter(m=>m&&(m.role==='user'||m.role==='assistant')&&typeof m.content==='string');
-  /* a chat saved while a reply was still pending ends with an unanswered question: drop it so the next send stays valid */
-  if(convo.length&&convo[convo.length-1].role==='user'){convo.pop();if(log.length&&log[log.length-1].role==='user')log.pop()}
-  if(!log.length){chats=chats.filter(x=>x.id!==id);renderHist();return}
-  app.classList.add('chatting');
-  const endsBot=convo.length&&convo[convo.length-1].role==='assistant';
-  log.forEach((l,i)=>{if(l.role==='user')addUser(l.text,Array.isArray(l.atts)?l.atts:[]);else{const el=add('bot','');if(endsBot&&i===log.length-1)lastBot=el;botMsg(el,l.text,false)}});
-  renderHist();down();
-}
+let newChatBusy=false;
 function newChat(){
-  closeSide();
+  if(newChatBusy)return;
   if(!log.length&&!msgs.children.length){inp.focus();return}
-  resetView();cur={id:newId()};renderHist();inp.focus();
-}
-function deleteChat(id){
-  if(id===cur.id){resetView();cur={id:newId()}}
-  chats=chats.filter(c=>c.id!==id);
-  save();
+  const btn=$('newChat'),wel=$('welcome');
+  btn.classList.remove('spin');void btn.offsetWidth;btn.classList.add('spin');
+  const go=()=>{
+    resetView();rotateSid();
+    msgs.classList.remove('leaving');
+    wel.classList.remove('enter');void wel.offsetWidth;wel.classList.add('enter');
+    newChatBusy=false;inp.focus();
+  };
+  if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches){go();return}
+  newChatBusy=true;
+  msgs.classList.add('leaving');
+  setTimeout(go,280);
 }
 $('newChat').onclick=newChat;
-$('newChat2').onclick=newChat;
-$('delAll').onclick=async()=>{
-  if(!window.confirm('Delete all chat history stored in this browser? This cannot be undone.'))return;
-  resetView();cur={id:newId()};
-  await wipe();renderHist();closeSide();inp.focus();
-};
 
 /* theme */
 const isDark=()=>{const t=document.documentElement.getAttribute('data-theme');return t?t==='dark':!!(window.matchMedia&&matchMedia('(prefers-color-scheme:dark)').matches)};
@@ -738,7 +694,7 @@ orb.onclick=()=>{
 /* About & FAQ stays folded until asked for */
 (function(){
   const ab=$('about');
-  document.querySelectorAll('a[href="#about"]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();ab.open=true;closeSide();ab.scrollIntoView({behavior:'smooth',block:'start'})}));
+  document.querySelectorAll('a[href="#about"]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();ab.open=true;ab.scrollIntoView({behavior:'smooth',block:'start'})}));
   document.querySelectorAll('a[href="#app"]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();ab.open=false;window.scrollTo({top:0,behavior:'smooth'});inp.focus({preventScroll:true})}));
 })();
 
@@ -751,27 +707,6 @@ orb.onclick=()=>{
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!panel.hidden)set(false)});
 })();
 
-/* restore saved chats */
-async function restore(){
-  let snap=null;
-  try{snap=await dbGet(KEY3)}catch(_){}
-  if(!snap){try{snap=JSON.parse(localStorage.getItem(KEY3)||'null')}catch(_){}}
-  let loaded=[];
-  if(snap&&Array.isArray(snap.chats))loaded=snap.chats.filter(validChat);
-  else{
-    /* one-time move of the single chat saved by the previous version */
-    let old=null;
-    try{old=await dbGet(KEY2)}catch(_){}
-    if(!old){try{old=JSON.parse(localStorage.getItem(KEY2)||'null')}catch(_){}}
-    if(old&&Array.isArray(old.log)&&old.log.length)loaded=[{id:newId(),title:titleOf(old.log),t:old.savedAt||Date.now(),log:old.log,history:Array.isArray(old.history)?old.history:[]}];
-  }
-  const mine=chats.find(c=>c.id===cur.id);
-  chats=loaded.filter(c=>!mine||c.id!==mine.id);
-  if(mine)chats.unshift(mine);
-  renderHist();
-  if(!log.length&&!busy&&chats.length)openChat(chats[0].id);
-}
-restore().catch(()=>{});
 grow();
 inp.placeholder=PLACEHOLDER;
 })();
