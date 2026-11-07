@@ -28,7 +28,7 @@
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
 {"@type":"Question","name":"Are the results guaranteed?","acceptedAnswer":{"@type":"Answer","text":"No. Results are estimates based on the numbers you enter. Returns, interest rates and inflation are assumptions and can change, so please check current rates with your bank or an official source. Rupeyantra AI gives general information, not financial advice."}},
-{"@type":"Question","name":"Is my chat saved?","acceptedAnswer":{"@type":"Answer","text":"Your chats are saved only in your own browser so you can reopen them from the history panel. Deleting them there removes them from this browser only. Your messages are sent to our server and to the AI providers it uses to write replies, so deleting local history does not delete anything held elsewhere. Never share OTPs, PINs, passwords or card numbers."}},
+{"@type":"Question","name":"Is my chat saved?","acceptedAnswer":{"@type":"Answer","text":"Chats are not saved in your browser, so closing or refreshing the page starts a fresh chat. Your messages are sent to our server and to the AI providers it uses to write replies. Never share OTPs, PINs, passwords or card numbers."}},
 {"@type":"Question","name":"Can I upload files?","acceptedAnswer":{"@type":"Answer","text":"Yes. You can attach up to 3 files to a message: photos, PDFs up to 2 MB, or text files such as TXT, CSV, TSV, JSON, MD and LOG. Photos are resized in your browser before they are sent. For text files only the first 8,000 characters are used. Figures read from a document should always be checked against the original."}},
 {"@type":"Question","name":"Can it create files?","acceptedAnswer":{"@type":"Answer","text":"Yes. Use the plus menu, choose Create file, and pick a report, CSV sheet, simple web page, text file or JSON. Please check any figures in the file before you use it."}}
 ]}
@@ -51,29 +51,7 @@ button:active:not(:disabled){transform:scale(.96)}
 a{color:var(--acc)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 #app{display:flex;height:100vh;height:100dvh;overflow:hidden}
-#side{width:280px;flex:none;display:flex;flex-direction:column;background:var(--card);border-right:1px solid var(--line);padding:calc(10px + env(safe-area-inset-top,0px)) 12px calc(10px + env(safe-area-inset-bottom,0px))}
-.side-off #side{display:none}
-.sbrand{display:flex;align-items:center;gap:10px;padding:4px 4px 12px}
-.sbrand b{display:block;font-size:16px}
-.sbrand small{display:block;color:var(--muted);font-size:12px}
 .logo{width:30px;height:30px;border-radius:10px;background:linear-gradient(135deg,var(--acc2),var(--acc) 60%,var(--vio));color:#fff;display:grid;place-items:center;font-weight:700;font-size:16px;flex:none}
-.newbtn{display:flex;align-items:center;gap:8px;width:100%;border:1px solid var(--line);background:var(--tint);color:var(--text);padding:10px 12px;border-radius:12px;font-weight:600;font-size:14px;cursor:pointer}
-.newbtn:hover{border-color:var(--acc)}
-.shead{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:16px 4px 6px}
-#hist{list-style:none;margin:0;padding:0;flex:1;min-height:0;overflow:auto;overscroll-behavior:contain}
-#hist li{display:flex;align-items:center;gap:2px;border-radius:10px}
-#hist li.on{background:var(--tint)}
-#hist .ot{flex:1;min-width:0;text-align:left;border:0;background:none;color:var(--text);padding:9px 10px;font-size:14px;border-radius:10px;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#hist li:hover{background:var(--tint)}
-#hist .dx{border:0;background:none;color:var(--muted);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:18px;flex:none}
-#hist .dx:hover{color:var(--err)}
-.hempty{color:var(--muted);font-size:13px;padding:6px 6px;line-height:1.5}
-.sfoot{border-top:1px solid var(--line);padding-top:10px;display:grid;gap:4px;font-size:13px}
-.sfoot a,.sfoot button{display:block;text-align:left;border:0;background:none;color:var(--text);padding:7px 6px;border-radius:8px;text-decoration:none;cursor:pointer;font-size:13px}
-.sfoot a:hover,.sfoot button:hover{background:var(--tint)}
-.sfoot .del{color:var(--err)}
-.sfoot p{margin:4px 6px 0;color:var(--muted);font-size:11.5px;line-height:1.5}
-#scrim{display:none}
 #col{flex:1;min-width:0;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
 .top{display:flex;align-items:center;gap:4px;padding:6px 10px}
 .top .brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:16px;margin-right:auto;min-width:0}
@@ -170,7 +148,7 @@ textarea:focus,textarea:focus-visible{outline:none!important;box-shadow:none!imp
 .has-text #send{opacity:1}
 #stop{display:none;background:var(--err);color:#fff}
 .busy #stop{display:grid}.busy #send,.busy #mic,.busy #vbtn{display:none}
-.acts{display:flex;align-items:center;overflow-x:auto;scrollbar-width:none;margin-top:2px}
+.acts{display:flex;align-items:center;flex-wrap:wrap;gap:2px;margin:2px 0 0 46px;padding-bottom:2px}
 .acts::-webkit-scrollbar{display:none}
 .acts button{display:flex;align-items:center;gap:6px;flex:none;border:0;background:none;color:var(--text);font:500 13.5px "Outfit",system-ui,sans-serif;padding:6px 9px;white-space:nowrap;cursor:pointer;border-radius:10px}
 .acts button:hover{background:var(--tint)}
@@ -237,16 +215,23 @@ input[type=file]{display:none}
 .info ul{padding-left:20px;margin:0 0 10px}
 .info .up{display:inline-block;margin-top:6px;font-weight:600}
 .foot{max-width:760px;margin:0 auto;padding:18px 18px calc(28px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);color:var(--muted);font-size:13px;text-align:center}
-@media(min-width:860px){#hist-toggle-label{display:inline}}
 @media(max-width:859px){
- #side{position:fixed;top:0;bottom:0;left:0;width:min(86vw,320px);transform:translateX(-102%);visibility:hidden;transition:transform .25s,visibility 0s .25s;z-index:40;box-shadow:var(--sh)}
- .side-open #side{transform:none;visibility:visible;transition:transform .25s}
- .side-open #scrim{display:block;position:fixed;inset:0;background:rgba(10,15,30,.45);z-index:30}
- .side-off #side{display:flex}
  .top .brand small{display:none}
 }
 @media(max-height:760px){#welcome{justify-content:flex-start;padding-top:4px}.intro{font-size:15px;margin-bottom:14px}}
 @media(max-width:420px){.circle{width:38px;height:38px}textarea::placeholder{font-size:14px}#main{padding:0 10px}.msg{max-width:96%;font-size:14.5px}.sugg{grid-template-columns:1fr 1fr}.sc{padding:10px 11px}.sc span{display:none}}
+/* New chat animation: purani chat halke se ud jaati hai, naya screen neeche se aata hai */
+#msgs.leaving .msg{animation:chatout .28s ease both}
+#msgs.leaving .msg:nth-child(2n){animation-delay:.04s}
+#newChat.spin svg{animation:penspin .55s cubic-bezier(.3,.7,.4,1)}
+#welcome.enter h1,#welcome.enter .intro{animation:fresh .5s cubic-bezier(.2,.8,.3,1) both}
+#welcome.enter .intro{animation-delay:.06s}
+#welcome.enter .sc{animation:fresh .5s cubic-bezier(.2,.8,.3,1) both}
+#welcome.enter .sc:nth-child(1){animation-delay:.10s}#welcome.enter .sc:nth-child(2){animation-delay:.14s}#welcome.enter .sc:nth-child(3){animation-delay:.18s}
+#welcome.enter .sc:nth-child(4){animation-delay:.22s}#welcome.enter .sc:nth-child(5){animation-delay:.26s}#welcome.enter .sc:nth-child(6){animation-delay:.30s}
+@keyframes chatout{to{opacity:0;transform:translateY(-10px) scale(.96)}}
+@keyframes fresh{from{opacity:0;transform:translateY(16px) scale(.97)}}
+@keyframes penspin{0%{transform:rotate(0) scale(1)}50%{transform:rotate(180deg) scale(1.25)}100%{transform:rotate(360deg) scale(1)}}
 @keyframes orb{50%{transform:scale(1.14)}}
 @keyframes pulse{50%{transform:scale(.85);opacity:.7}}
 @keyframes pop{from{opacity:0;transform:translateY(8px) scale(.94)}}
@@ -257,23 +242,9 @@ input[type=file]{display:none}
 </style>
 </head>
 <body>
-<div id="app" class="side-off-init">
-  <aside id="side" aria-label="Chat history">
-    <div class="sbrand"><span class="logo" aria-hidden="true">₹</span><div><b>Rupeyantra AI</b><small>Aapka Finance Saathi</small></div></div>
-    <button type="button" class="newbtn" id="newChat2"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>New chat</button>
-    <p class="shead" id="histLabel">Chat history</p>
-    <ul id="hist" aria-labelledby="histLabel"></ul>
-    <div class="sfoot">
-      <button type="button" class="del" id="delAll">Delete all local chat history</button>
-      <p>Chats are saved only in this browser. Deleting them here does not remove anything stored on the server or by the AI providers that write the replies.</p>
-      <a href="#about">About &amp; FAQ</a>
-      <a href="/">Back to Rupeyantra home</a>
-    </div>
-  </aside>
-  <div id="scrim"></div>
+<div id="app">
   <div id="col">
     <header class="top">
-      <button class="ib" id="histBtn" type="button" aria-label="Show or hide chat history" aria-controls="side" aria-expanded="true"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
       <div class="brand"><span class="logo" aria-hidden="true">₹</span><span>Rupeyantra AI <small>· Aapka Finance Saathi</small></span></div>
       <a class="ib" href="/" aria-label="Back to Rupeyantra home" title="Home"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/></svg></a>
       <button class="ib" id="themeBtn" type="button" aria-label="Switch light or dark theme" title="Switch theme"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
@@ -307,22 +278,19 @@ input[type=file]{display:none}
             <div class="mid">
               <label class="sr" for="inp">Ask a question</label>
               <textarea id="inp" rows="1" maxlength="4000" placeholder="Aapka agla sawal kya hai?" autocomplete="off"></textarea>
-              <div class="acts">
-                <button type="button" id="pickPhoto"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 9"/></svg>Image</button>
-                <button type="button" id="pickFile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg>File</button>
-                <button type="button" id="pickText"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Text</button>
-              </div>
             </div>
             <button type="button" class="circle" id="mic" aria-label="Speak your question" title="Speak your question"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></svg></button>
             <button type="button" class="circle" id="stop" aria-label="Stop response" title="Stop response"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
             <button type="button" class="circle" id="vbtn" aria-label="Voice mode" title="Voice mode"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg></button>
             <button type="submit" class="circle" id="send" aria-label="Send" title="Send"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
           </div>
+              <div class="acts">
+                <button type="button" id="pickPhoto"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M21 16l-5-5-8 9"/></svg>Image</button>
+                <button type="button" id="pickFile"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/></svg>File</button>
+                <button type="button" id="pickText"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Text</button>
+              </div>
           <div class="menu" id="menu" role="menu" aria-label="More options">
             <button type="button" id="pickCam" role="menuitem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Camera</button>
-            <button type="button" id="pickReport" role="menuitem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Report</button>
-            <button type="button" id="pickCalc" role="menuitem" aria-expanded="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="3"/><path d="M8 7h8M8 12h2M12 12h2M8 16h2M12 16h2"/></svg>Calculators</button>
-            <div class="calcs grid" id="calcs"></div>
             <button type="button" id="pickGen" role="menuitem" aria-expanded="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M12 12v6M9 15h6"/></svg>Create file</button>
             <div class="calcs" id="gens"></div>
           </div>
@@ -363,7 +331,7 @@ input[type=file]{display:none}
   <h3>Are the results guaranteed?</h3>
   <p>No. Results are estimates based on the numbers you enter. Returns, interest rates and inflation are assumptions and can change, so please check current rates with your bank or an official source. Rupeyantra AI gives general information, not financial advice.</p>
   <h3>Is my chat saved?</h3>
-  <p>Your chats are saved only in your own browser so you can reopen them from the history panel. Deleting them there removes them from this browser only. Your messages are sent to our server and to the AI providers it uses to write replies, so deleting local history does not delete anything held elsewhere. Never share OTPs, PINs, passwords or card numbers.</p>
+  <p>Chats are not saved in your browser, so closing or refreshing the page starts a fresh chat. Your messages are sent to our server and to the AI providers it uses to write replies. Never share OTPs, PINs, passwords or card numbers.</p>
   <h3>Can I upload files?</h3>
   <p>Yes. You can attach up to 3 files to a message: photos, PDFs up to 2 MB, or text files such as TXT, CSV, TSV, JSON, MD and LOG. Photos are resized in your browser before they are sent. For text files only the first 8,000 characters are used. Figures read from a document should always be checked against the original.</p>
   <h3>Can it create files?</h3>
