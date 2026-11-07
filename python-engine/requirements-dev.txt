@@ -1,3 +1,0 @@
-# only for running the tests; numpy is used as an independent cross-check of the results
-pytest>=7
-numpy>=1.24
