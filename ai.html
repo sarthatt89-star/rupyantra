@@ -23,7 +23,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebApplication","name":"Rupeyantra AI","alternateName":"Aapka Finance Saathi","url":"https://rupyantra-psi.vercel.app/ai.html","applicationCategory":"FinanceApplication","operatingSystem":"Web","inLanguage":"en-IN","description":"AI assistant for understanding EMI, SIP, loans, budgeting and savings in India.","offers":{"@type":"Offer","price":"0","priceCurrency":"INR"}}
+{"@context":"https://schema.org","@type":"WebApplication","name":"Rupeyantra AI","alternateName":"Your Finance Companion","url":"https://rupyantra-psi.vercel.app/ai.html","applicationCategory":"FinanceApplication","operatingSystem":"Web","inLanguage":"en-IN","description":"AI assistant for understanding EMI, SIP, loans, budgeting and savings in India.","offers":{"@type":"Offer","price":"0","priceCurrency":"INR"}}
 </script>
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
@@ -59,7 +59,7 @@ a{color:var(--acc)}
 .ib{width:42px;height:42px;border:0;background:none;color:var(--text);display:grid;place-items:center;border-radius:12px;cursor:pointer;text-decoration:none;flex:none}
 .ib:hover{background:var(--tint)}
 svg.i{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-#main{flex:1;min-height:0;display:flex;flex-direction:column;width:100%;max-width:780px;margin:0 auto;padding:0 16px}
+#main{position:relative;flex:1;min-height:0;display:flex;flex-direction:column;width:100%;max-width:780px;margin:0 auto;padding:0 16px}
 #welcome{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;justify-content:center;padding:12px 0}
 h1{font-size:clamp(26px,6.4vw,38px);line-height:1.15;font-weight:700;letter-spacing:-.025em;text-align:center;margin:0 0 10px}
 .intro{font-size:16px;line-height:1.55;color:var(--muted);text-align:center;margin:0 auto 20px;max-width:540px}
@@ -181,7 +181,6 @@ textarea:focus,textarea:focus-visible{outline:none!important;box-shadow:none!imp
 .chip button{border:0;background:none;color:var(--muted);font-size:18px;width:28px;height:28px;border-radius:50%;cursor:pointer}
 input[type=file]{display:none}
 #dock{padding-bottom:calc(4px + env(safe-area-inset-bottom,0px))}
-.discrow{display:flex;justify-content:center;padding:6px 0 2px}
 .discbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);color:var(--muted);font:500 12.5px "Outfit",system-ui,sans-serif;padding:6px 14px;border-radius:999px;cursor:pointer;box-shadow:0 1px 2px rgba(23,32,51,.06)}
 .discbtn:hover,.discbtn[aria-expanded="true"]{color:var(--text);border-color:var(--acc);background:var(--tint)}
 .discbtn svg{width:15px;height:15px}
@@ -220,6 +219,45 @@ input[type=file]{display:none}
 }
 @media(max-height:760px){#welcome{justify-content:flex-start;padding-top:4px}.intro{font-size:15px;margin-bottom:14px}}
 @media(max-width:420px){.circle{width:38px;height:38px}textarea::placeholder{font-size:14px}#main{padding:0 10px}.msg{max-width:96%;font-size:14.5px}.sugg{grid-template-columns:1fr 1fr}.sc{padding:10px 11px}.sc span{display:none}}
+/* ===== Visual polish (sirf dikhawat; ids/classes wahi) ===== */
+body{background-image:radial-gradient(900px 420px at 88% -8%,rgba(59,91,219,.16),transparent 70%),radial-gradient(700px 380px at -8% 6%,rgba(14,154,167,.14),transparent 70%),var(--bgg);background-attachment:fixed}
+.top{position:relative;backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid color-mix(in srgb,var(--line) 70%,transparent)}
+.top .brand .logo{box-shadow:0 6px 16px -6px rgba(59,91,219,.7)}
+#welcome::before{content:"Free finance assistant for India";align-self:center;margin-bottom:16px;font-size:12.5px;font-weight:600;letter-spacing:.02em;color:var(--acc2);background:var(--tint);border:1px solid var(--line);padding:6px 14px;border-radius:999px}
+h1{background:linear-gradient(120deg,var(--text) 30%,var(--acc) 70%,var(--acc2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;padding-bottom:4px}
+.sugg{gap:12px}
+.sc{display:grid;grid-template-columns:auto 1fr;column-gap:12px;row-gap:2px;align-items:center;padding:14px 16px;border-radius:18px;box-shadow:0 1px 2px rgba(23,32,51,.04);transition:transform .18s,box-shadow .2s,border-color .2s,background-color .2s}
+.sc::before{grid-row:1/3;display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:var(--tint);font-size:20px;line-height:1}
+.sc:nth-child(1)::before{content:"🏠"}.sc:nth-child(2)::before{content:"📈"}.sc:nth-child(3)::before{content:"⚖️"}.sc:nth-child(4)::before{content:"🧾"}.sc:nth-child(5)::before{content:"💰"}.sc:nth-child(6)::before{content:"🛟"}
+.sc:hover{transform:translateY(-3px);box-shadow:0 14px 28px -16px rgba(59,91,219,.55)}
+.sc:active{transform:scale(.98)}
+.sc b{align-self:end}.sc span{align-self:start}
+@media(max-width:420px){.sc{grid-template-columns:auto 1fr;padding:12px}.sc::before{grid-row:1;width:34px;height:34px;font-size:17px}.sc b{align-self:center;font-size:14px}}
+.card{border-radius:26px;box-shadow:0 18px 40px -22px rgba(23,32,51,.45),0 2px 6px rgba(23,32,51,.05);background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#send{background:linear-gradient(135deg,var(--acc2),var(--acc))}
+.msg.user{background:linear-gradient(135deg,var(--acc),color-mix(in srgb,var(--acc) 70%,var(--vio)));box-shadow:0 8px 18px -10px rgba(59,91,219,.7)}
+.msg.bot{box-shadow:0 6px 18px -12px rgba(23,32,51,.35)}
+.discbtn{box-shadow:0 1px 2px rgba(23,32,51,.06)}
+/* ===== Composer ke neeche ka hissa: saaf aur halka ===== */
+#dock{padding-bottom:calc(2px + env(safe-area-inset-bottom,0px))}
+.discbtn{border:0;background:none;box-shadow:none;padding:4px 10px;font-size:12px;color:var(--muted);opacity:.85}
+.discbtn:hover,.discbtn[aria-expanded="true"]{background:var(--tint);border:0;color:var(--text);opacity:1}
+.discbtn svg{width:13px;height:13px}
+.info{padding:6px 18px 0;line-height:1.7}
+.info>summary.aboutbtn{border:0;background:none;box-shadow:none;color:var(--muted);font:500 13px "Outfit",system-ui,sans-serif;padding:8px 14px;border-radius:999px}
+.info>summary.aboutbtn:hover{background:var(--tint);color:var(--text);border:0}
+.info[open]>summary.aboutbtn{background:var(--tint);color:var(--text)}
+.foot{border-top:0;padding:6px 18px calc(22px + env(safe-area-inset-bottom,0px));font-size:12px}
+.foot p{margin:4px 0 0;opacity:.85}
+@media(max-width:420px){.top{padding:6px 6px}.ib{width:40px;height:40px}}
+/* ===== Upar ki patti (menu ke neeche): Disclaimer aur About & FAQ ===== */
+.strip{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;padding:8px 12px 4px}
+.strip .discbtn{display:inline-flex;align-items:center;gap:6px;text-decoration:none;border:1px solid var(--line);background:color-mix(in srgb,var(--card) 80%,transparent);color:var(--muted);font:500 12.5px "Outfit",system-ui,sans-serif;padding:5px 12px;border-radius:999px;box-shadow:none;opacity:1;cursor:pointer}
+.strip .discbtn:hover,.strip .discbtn[aria-expanded="true"]{border-color:var(--acc);background:var(--tint);color:var(--text)}
+.strip .discbtn svg{width:14px;height:14px}
+.discpanel{width:calc(100% - 24px);max-width:756px;margin:0 auto 8px;transform-origin:top center}
+.info:not([open]){display:none}
+.info>summary.aboutbtn{display:none}
 /* New chat animation: purani chat halke se ud jaati hai, naya screen neeche se aata hai */
 #msgs.leaving .msg{animation:chatout .28s ease both}
 #msgs.leaving .msg:nth-child(2n){animation-delay:.04s}
@@ -232,6 +270,10 @@ input[type=file]{display:none}
 @keyframes chatout{to{opacity:0;transform:translateY(-10px) scale(.96)}}
 @keyframes fresh{from{opacity:0;transform:translateY(16px) scale(.97)}}
 @keyframes penspin{0%{transform:rotate(0) scale(1)}50%{transform:rotate(180deg) scale(1.25)}100%{transform:rotate(360deg) scale(1)}}
+#toBottom{position:absolute;left:50%;transform:translateX(-50%);bottom:150px;z-index:5;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--text);display:grid;place-items:center;cursor:pointer;box-shadow:var(--sh);animation:pop .18s ease both}
+#toBottom[hidden]{display:none}
+.cnt{text-align:right;font-size:12px;color:var(--muted);padding:0 10px 4px}
+.cnt.warn{color:var(--err);font-weight:600}
 @keyframes orb{50%{transform:scale(1.14)}}
 @keyframes pulse{50%{transform:scale(.85);opacity:.7}}
 @keyframes pop{from{opacity:0;transform:translateY(8px) scale(.94)}}
@@ -245,11 +287,20 @@ input[type=file]{display:none}
 <div id="app">
   <div id="col">
     <header class="top">
-      <div class="brand"><span class="logo" aria-hidden="true">₹</span><span>Rupeyantra AI <small>· Aapka Finance Saathi</small></span></div>
+      <div class="brand"><span class="logo" aria-hidden="true">₹</span><span>Rupeyantra AI <small>· Your Finance Companion</small></span></div>
       <a class="ib" href="/" aria-label="Back to Rupeyantra home" title="Home"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/></svg></a>
       <button class="ib" id="themeBtn" type="button" aria-label="Switch light or dark theme" title="Switch theme"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg></button>
       <button class="ib" id="newChat" type="button" aria-label="New chat" title="New chat"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/><path d="M18.4 3.6a1.9 1.9 0 0 1 2.7 2.7L12 15.4l-3.8 1 1-3.8z"/></svg></button>
     </header>
+    <div class="strip">
+      <button type="button" id="discBtn" class="discbtn" aria-expanded="false" aria-controls="discPanel"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>Not financial advice</button>
+      <a class="discbtn" href="#about"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h6a3 3 0 0 1 3 3v11a2 2 0 0 0-2-2H4zM20 5h-6a3 3 0 0 0-3 3v11a2 2 0 0 1 2-2h7z"/></svg>About &amp; FAQ</a>
+    </div>
+        <div id="discPanel" class="discpanel" role="region" aria-label="Financial disclaimer" hidden>
+          <p>Rupeyantra AI provides general financial information and estimates for educational purposes. Results depend on the information and assumptions provided. Investment returns are not guaranteed. Verify important information before making financial decisions.</p>
+          <button type="button" id="discClose" class="discx">Got it</button>
+        </div>
+
     <main id="main">
       <div id="welcome">
         <h1>Rupeyantra AI: Your Smart Finance Assistant</h1>
@@ -264,12 +315,9 @@ input[type=file]{display:none}
         </div>
       </div>
       <div id="msgs" role="log" aria-live="polite" aria-relevant="additions text" aria-label="Conversation"></div>
+      <button type="button" id="toBottom" aria-label="Scroll to latest message" hidden><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button>
       <div id="dock">
-        <div id="note" class="note" role="status" aria-live="polite"></div>
-        <div id="discPanel" class="discpanel" role="region" aria-label="Financial disclaimer" hidden>
-          <p>Rupeyantra AI provides general financial information and estimates for educational purposes. Results depend on the information and assumptions provided. Investment returns are not guaranteed. Verify important information before making financial decisions.</p>
-          <button type="button" id="discClose" class="discx">Got it</button>
-        </div>
+        <div id="note" class="note" role="status" aria-live="polite"></div>        <div id="cnt" class="cnt" aria-live="polite" hidden></div>
         <form class="card" id="form">
           <div class="genpill" id="genpill" hidden><span id="gentxt"></span><button type="button" id="gencancel" aria-label="Cancel file mode">×</button></div>
           <div class="chips" id="chips" aria-label="Attached files"></div>
@@ -277,7 +325,7 @@ input[type=file]{display:none}
             <button type="button" class="circle" id="plus" aria-label="More options" aria-haspopup="true" aria-expanded="false" aria-controls="menu"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
             <div class="mid">
               <label class="sr" for="inp">Ask a question</label>
-              <textarea id="inp" rows="1" maxlength="4000" placeholder="Aapka agla sawal kya hai?" autocomplete="off"></textarea>
+              <textarea id="inp" rows="1" maxlength="4000" placeholder="Ask your next question" autocomplete="off"></textarea>
             </div>
             <button type="button" class="circle" id="mic" aria-label="Speak your question" title="Speak your question"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></svg></button>
             <button type="button" class="circle" id="stop" aria-label="Stop response" title="Stop response"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
@@ -291,6 +339,7 @@ input[type=file]{display:none}
               </div>
           <div class="menu" id="menu" role="menu" aria-label="More options">
             <button type="button" id="pickCam" role="menuitem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Camera</button>
+            <button type="button" id="pickLang" role="menuitem"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18"/></svg><span id="langtxt">Voice language: English</span></button>
             <button type="button" id="pickGen" role="menuitem" aria-expanded="false"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M12 12v6M9 15h6"/></svg>Create file</button>
             <div class="calcs" id="gens"></div>
           </div>
@@ -298,8 +347,6 @@ input[type=file]{display:none}
         <input type="file" id="imgIn" accept="image/*" multiple aria-label="Choose images">
         <input type="file" id="camIn" accept="image/*" capture="environment" aria-label="Take a photo">
         <input type="file" id="fileIn" accept=".pdf,.txt,.csv,.tsv,.json,.md,.log,application/pdf,text/plain" multiple aria-label="Choose PDF or text files">
-        
-        <div class="discrow"><button type="button" id="discBtn" class="discbtn" aria-expanded="false" aria-controls="discPanel"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>Not financial advice · Disclaimer</button></div>
       </div>
     </main>
   </div>
@@ -321,7 +368,6 @@ input[type=file]{display:none}
 
   <h2>Which Calculators Are Available?</h2>
   <p>When you ask in the chat, these are worked out by a built-in calculator: EMI, SIP, lumpsum and FD maturity, CAGR, simple interest, GST, inflation, budget and savings goals, EMI comparison and SIP scenarios.</p>
-  <p>The plus menu also opens 22 interactive calculators with charts and CSV download: EMI (with prepayment and a year-by-year schedule), SIP, step-up SIP, lumpsum, FD, RD, PPF, SWP, CAGR, compound interest, simple interest, inflation, retirement planner, goal planner, budget planner, loan comparison, loan eligibility, loan tenure, credit card payoff, emergency fund, GST and a money doubler.</p>
 
   <h2>How Does Rupeyantra AI Work?</h2>
   <p>Your question is sent to the Rupeyantra server. Calculations such as EMI or SIP are run by the built-in calculator and checked by a second, independent calculation before the numbers are shown; the AI only explains the result. A "Verified by calculator" note appears only when those checks pass.</p>
@@ -338,10 +384,6 @@ input[type=file]{display:none}
   <p>Yes. Use the plus menu, choose Create file, and pick a report, CSV sheet, simple web page, text file or JSON. Please check any figures in the file before you use it.</p>
   <a class="up" href="#app">Back to the chat</a>
 </details>
-<footer class="foot">
-  <p><a href="/">Rupeyantra home</a></p>
-  <p>General information only, not financial advice.</p>
-</footer>
 <noscript><p class="foot">Rupeyantra AI needs JavaScript to run the chat and calculators.</p></noscript>
 <script src="/ai.js" defer></script>
 </body>
