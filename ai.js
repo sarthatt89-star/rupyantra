@@ -12,14 +12,16 @@ function rotateSid(){const n=newSid();if(!n)return;SID=n;try{sessionStorage.setI
 let SID=null;try{SID=sessionStorage.getItem('rupeyantra_sid');if(!SID){SID=newSid();if(SID)sessionStorage.setItem('rupeyantra_sid',SID)}}catch(_){SID=SID||newSid()}
 let convo=[],pending=[],log=[],gen=0,controller=null,activeBot=null,busy=false,noteTimer=null,rec=null,stopped=false,lastUserEl=null,lastDraft='',lastBot=null,speaking=null,noCard=false,streamMeta={},genFormat=null,genRun=false;
 const MAX_FILES=3,MAX_B64=2700000,MAX_TOTAL_B64=3300000,MAX_PDF=2000000,MAX_CONTENT=12000,TEXT_PER_FILE=8000,MAX_TEXT_FILE=500000,REQUEST_TIMEOUT=55000;
-const PLACEHOLDER='Aapka agla sawal kya hai?';
+const PLACEHOLDER='Ask your next question';
 const TEXT_EXT=/\.(txt|csv|tsv|json|md|log)$/i;
 
 function refresh(){form.classList.toggle('has-text',inp.value.trim().length>0||pending.length>0)}
-function grow(){inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,200)+'px';refresh()}
+function grow(){inp.style.height='auto';inp.style.height=Math.min(inp.scrollHeight,200)+'px';refresh();updCnt()}
+function updCnt(){const c=$('cnt');if(!c)return;const n=inp.value.length;if(n>=3500){c.hidden=false;c.textContent=n.toLocaleString('en-IN')+' / 4,000';c.classList.toggle('warn',n>=3900)}else c.hidden=true}
 function setBusy(b){busy=b;form.classList.toggle('busy',b)}
 function warn(t){note.textContent=t;note.classList.add('show');clearTimeout(noteTimer);noteTimer=setTimeout(()=>note.classList.remove('show'),6000)}
-const down=()=>{msgs.scrollTop=msgs.scrollHeight};
+/* Neeche tabhi le jao jab user pehle se neeche ke paas ho (ya naya message bheja ho), taaki upar padhte waqt jawab kheench kar na le jaye */
+const down=f=>{if(f||msgs.scrollHeight-msgs.scrollTop-msgs.clientHeight<200)msgs.scrollTop=msgs.scrollHeight};
 inp.addEventListener('input',grow);
 inp.addEventListener('keydown',e=>{const touch=window.matchMedia&&matchMedia('(pointer:coarse)').matches;if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&!touch){e.preventDefault();form.requestSubmit()}});
 inp.addEventListener('paste',e=>{const f=Array.from((e.clipboardData&&e.clipboardData.files)||[]).filter(x=>x.type.startsWith('image/'));if(f.length){e.preventDefault();addFiles(f)}});
@@ -183,7 +185,7 @@ function toolCard(k){
     grow();form.requestSubmit();
   });
   d.appendChild(row);msgs.appendChild(d);
-  app.classList.add('chatting');down();
+  app.classList.add('chatting');down(true);
 }
 
 /* messages UI */
@@ -198,7 +200,7 @@ function thinkingBot(){
   const d=document.createElement('div');d.className='msg bot thinking';
   const dot=document.createElement('span');dot.className='dot';dot.textContent='₹';
   const t=document.createElement('span');t.className='t';t.textContent='Thinking…';
-  d.appendChild(dot);d.appendChild(t);msgs.appendChild(d);down();return d;
+  d.appendChild(dot);d.appendChild(t);msgs.appendChild(d);down(true);return d;
 }
 function showError(bot,text,retryFn){
   bot.classList.remove('thinking');bot.classList.add('err');bot.textContent=text;
@@ -591,6 +593,24 @@ async function startGen(prompt){
   }
 }
 
+/* voice language (English / Hindi) */
+function voiceLang(){try{return localStorage.getItem('rupeyantra_voice')==='hi'?'hi-IN':'en-IN'}catch(_){return 'en-IN'}}
+function syncLang(){const t=$('langtxt');if(t)t.textContent='Voice language: '+(voiceLang()==='hi-IN'?'Hindi':'English')}
+$('pickLang').onclick=e=>{e.stopPropagation();try{localStorage.setItem('rupeyantra_voice',voiceLang()==='hi-IN'?'en':'hi')}catch(_){}syncLang()};
+syncLang();
+
+/* scroll to latest */
+(function(){
+  const b=$('toBottom'),dock=$('dock');
+  function place(){b.style.bottom=(dock.offsetHeight+12)+'px'}
+  function check(){place();b.hidden=!(msgs.scrollHeight-msgs.scrollTop-msgs.clientHeight>180)}
+  msgs.addEventListener('scroll',check,{passive:true});
+  window.addEventListener('resize',check);
+  new MutationObserver(check).observe(msgs,{childList:true,subtree:true,characterData:true});
+  b.onclick=()=>{msgs.scrollTop=msgs.scrollHeight};
+  place();
+})();
+
 /* new chat */
 function resetView(){
   stopped=true;gen++;
@@ -638,7 +658,7 @@ else{
   mic.onclick=()=>{
     if(rec){try{rec.stop()}catch(_){}return}
     const r=new SR();
-    r.lang='en-IN';r.interimResults=false;r.continuous=false;
+    r.lang=voiceLang();r.interimResults=false;r.continuous=false;
     r.onresult=ev=>{
       const t=Array.from(ev.results).map(x=>x[0].transcript).join(' ').trim();
       if(t){inp.value=(inp.value?inp.value+' ':'')+t;grow()}
@@ -659,7 +679,7 @@ function vListen(){
   if(!voiceOn||vMuted||busy||vRec)return;
   if(!SR){vSet('','Voice input is not supported in this browser. Please use Chrome.');return}
   stopSpeech();
-  const r=new SR();r.lang='en-IN';r.interimResults=true;r.continuous=false;
+  const r=new SR();r.lang=voiceLang();r.interimResults=true;r.continuous=false;
   let fin='';
   r.onresult=ev=>{fin=Array.from(ev.results).map(x=>x[0].transcript).join(' ').trim();vst.textContent=fin};
   r.onerror=ev=>{if(ev.error==='not-allowed'||ev.error==='service-not-allowed')vSet('','Please allow microphone access.')};
@@ -691,17 +711,32 @@ orb.onclick=()=>{
   else if(vState==='')vListen();
 };
 
-/* About & FAQ stays folded until asked for */
+/* About & FAQ: ek baar dabao to khule, dobara dabao to band (animation ke saath) */
 (function(){
-  const ab=$('about');
-  document.querySelectorAll('a[href="#about"]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();ab.open=true;ab.scrollIntoView({behavior:'smooth',block:'start'})}));
-  document.querySelectorAll('a[href="#app"]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();ab.open=false;window.scrollTo({top:0,behavior:'smooth'});inp.focus({preventScroll:true})}));
+  const ab=$('about'),strip=document.querySelector('.strip'),links=document.querySelectorAll('a[href="#about"]');
+  function place(){ab.style.top=(strip.getBoundingClientRect().bottom+6)+'px'}
+  function setAbout(o){
+    if(o){place();ab.scrollTop=0}
+    ab.classList.toggle('show',o);ab.setAttribute('aria-hidden',String(!o));
+    links.forEach(a=>a.setAttribute('aria-expanded',String(o)));
+  }
+  links.forEach(a=>a.addEventListener('click',e=>{e.preventDefault();setAbout(!ab.classList.contains('show'))}));
+  document.querySelectorAll('a[href="#app"]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();setAbout(false);inp.focus({preventScroll:true})}));
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&ab.classList.contains('show'))setAbout(false)});
+  window.addEventListener('resize',()=>{if(ab.classList.contains('show'))place()});
 })();
 
 /* disclaimer button: the long text opens only when asked */
 (function(){
   const btn=$('discBtn'),panel=$('discPanel');
-  const set=o=>{panel.hidden=!o;btn.setAttribute('aria-expanded',String(o));if(o){panel.scrollIntoView({block:'nearest'});$('discClose').focus()}else btn.focus()};
+  const set=o=>{
+    btn.setAttribute('aria-expanded',String(o));
+    if(o){panel.classList.remove('closing');panel.hidden=false;panel.scrollIntoView({block:'nearest'});$('discClose').focus();return}
+    if(panel.hidden)return;
+    const done=()=>{panel.hidden=true;panel.classList.remove('closing');btn.focus()};
+    if(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches){done();return}
+    panel.classList.add('closing');setTimeout(done,190);
+  };
   btn.onclick=()=>set(panel.hidden);
   $('discClose').onclick=()=>set(false);
   document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!panel.hidden)set(false)});
