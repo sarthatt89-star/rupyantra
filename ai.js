@@ -626,9 +626,9 @@ function resetView(){
 let newChatBusy=false;
 function newChat(){
   if(newChatBusy)return;
-  if(!log.length&&!msgs.children.length){inp.focus();return}
   const btn=$('newChat'),wel=$('welcome');
   btn.classList.remove('spin');void btn.offsetWidth;btn.classList.add('spin');
+  if(!log.length&&!msgs.children.length){wel.classList.remove('enter');void wel.offsetWidth;wel.classList.add('enter');inp.focus();return}
   const go=()=>{
     resetView();rotateSid();
     msgs.classList.remove('leaving');
