@@ -201,13 +201,6 @@ input[type=file]{display:none}
 .vr .circle{background:var(--card);border:1px solid var(--line)}
 .vr #vx{background:var(--text);color:var(--bg);border:0}
 .vr #vm.on{color:var(--err)}
-.info{max-width:760px;margin:0 auto;padding:18px 18px 8px;line-height:1.7}
-.info>summary.aboutbtn{list-style:none;display:flex;align-items:center;justify-content:center;gap:8px;width:max-content;max-width:100%;margin:0 auto;border:1px solid var(--line);background:var(--card);color:var(--text);font:600 14px "Outfit",system-ui,sans-serif;padding:10px 20px;border-radius:999px;cursor:pointer;box-shadow:0 1px 2px rgba(23,32,51,.06)}
-.info>summary.aboutbtn::-webkit-details-marker{display:none}
-.info>summary.aboutbtn::after{content:"▾";transition:transform .2s}
-.info[open]>summary.aboutbtn::after{transform:rotate(180deg)}
-.info>summary.aboutbtn:hover{border-color:var(--acc);background:var(--tint)}
-.info[open]>summary.aboutbtn{margin-bottom:18px}
 .info h2{font-size:clamp(20px,3.4vw,26px);letter-spacing:-.015em;margin:30px 0 8px}
 .info h3{font-size:17px;margin:20px 0 4px}
 .info p,.info li{color:var(--muted);font-size:15.5px;margin:0 0 10px}
@@ -243,10 +236,6 @@ h1{background:linear-gradient(120deg,var(--text) 30%,var(--acc) 70%,var(--acc2))
 .discbtn{border:0;background:none;box-shadow:none;padding:4px 10px;font-size:12px;color:var(--muted);opacity:.85}
 .discbtn:hover,.discbtn[aria-expanded="true"]{background:var(--tint);border:0;color:var(--text);opacity:1}
 .discbtn svg{width:13px;height:13px}
-.info{padding:6px 18px 0;line-height:1.7}
-.info>summary.aboutbtn{border:0;background:none;box-shadow:none;color:var(--muted);font:500 13px "Outfit",system-ui,sans-serif;padding:8px 14px;border-radius:999px}
-.info>summary.aboutbtn:hover{background:var(--tint);color:var(--text);border:0}
-.info[open]>summary.aboutbtn{background:var(--tint);color:var(--text)}
 .foot{border-top:0;padding:6px 18px calc(22px + env(safe-area-inset-bottom,0px));font-size:12px}
 .foot p{margin:4px 0 0;opacity:.85}
 @media(max-width:420px){.top{padding:6px 6px}.ib{width:40px;height:40px}}
@@ -256,8 +245,13 @@ h1{background:linear-gradient(120deg,var(--text) 30%,var(--acc) 70%,var(--acc2))
 .strip .discbtn:hover,.strip .discbtn[aria-expanded="true"]{border-color:var(--acc);background:var(--tint);color:var(--text)}
 .strip .discbtn svg{width:14px;height:14px}
 .discpanel{width:calc(100% - 24px);max-width:756px;margin:0 auto 8px;transform-origin:top center}
-.info:not([open]){display:none}
-.info>summary.aboutbtn{display:none}
+/* About & FAQ: strip ke neeche se animation ke saath khulta/band hota hai */
+.info{position:fixed;left:0;right:0;top:96px;bottom:0;z-index:25;overflow:auto;overscroll-behavior:contain;background:var(--bg);background-image:var(--bgg);padding:8px 18px calc(28px + env(safe-area-inset-bottom,0px));line-height:1.7;visibility:hidden;opacity:0;transform:translateY(-14px) scale(.985);transition:opacity .26s ease,transform .3s cubic-bezier(.2,.8,.3,1),visibility 0s .3s}
+.info.show{visibility:visible;opacity:1;transform:none;transition:opacity .26s ease,transform .3s cubic-bezier(.2,.8,.3,1),visibility 0s}
+.info>*{max-width:760px;margin-left:auto;margin-right:auto}
+.strip .discbtn[aria-expanded="true"] svg{transform:rotate(0)}
+.discpanel.closing{animation:pclose .18s ease both}
+@keyframes pclose{to{opacity:0;transform:translateY(-8px) scale(.97)}}
 /* New chat animation: purani chat halke se ud jaati hai, naya screen neeche se aata hai */
 #msgs.leaving .msg{animation:chatout .28s ease both}
 #msgs.leaving .msg:nth-child(2n){animation-delay:.04s}
@@ -294,7 +288,7 @@ h1{background:linear-gradient(120deg,var(--text) 30%,var(--acc) 70%,var(--acc2))
     </header>
     <div class="strip">
       <button type="button" id="discBtn" class="discbtn" aria-expanded="false" aria-controls="discPanel"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>Not financial advice</button>
-      <a class="discbtn" href="#about"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h6a3 3 0 0 1 3 3v11a2 2 0 0 0-2-2H4zM20 5h-6a3 3 0 0 0-3 3v11a2 2 0 0 1 2-2h7z"/></svg>About &amp; FAQ</a>
+      <a class="discbtn" href="#about" role="button" aria-expanded="false" aria-controls="about"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h6a3 3 0 0 1 3 3v11a2 2 0 0 0-2-2H4zM20 5h-6a3 3 0 0 0-3 3v11a2 2 0 0 1 2-2h7z"/></svg>About &amp; FAQ</a>
     </div>
         <div id="discPanel" class="discpanel" role="region" aria-label="Financial disclaimer" hidden>
           <p>Rupeyantra AI provides general financial information and estimates for educational purposes. Results depend on the information and assumptions provided. Investment returns are not guaranteed. Verify important information before making financial decisions.</p>
@@ -361,8 +355,7 @@ h1{background:linear-gradient(120deg,var(--text) 30%,var(--acc) 70%,var(--acc2))
   </div>
 </div>
 
-<details class="info" id="about">
-  <summary class="aboutbtn">About Rupeyantra AI &amp; FAQ</summary>
+<section class="info" id="about" role="region" aria-label="About and FAQ" aria-hidden="true">
   <h2>What Is Rupeyantra AI?</h2>
   <p>Rupeyantra AI is a free finance assistant for people in India. Ask about EMIs, SIPs, loans, budgets and savings in Hindi, Hinglish or English and get a clear explanation, with the calculation shown whenever numbers are involved.</p>
 
@@ -383,7 +376,7 @@ h1{background:linear-gradient(120deg,var(--text) 30%,var(--acc) 70%,var(--acc2))
   <h3>Can it create files?</h3>
   <p>Yes. Use the plus menu, choose Create file, and pick a report, CSV sheet, simple web page, text file or JSON. Please check any figures in the file before you use it.</p>
   <a class="up" href="#app">Back to the chat</a>
-</details>
+</section>
 <noscript><p class="foot">Rupeyantra AI needs JavaScript to run the chat and calculators.</p></noscript>
 <script src="/ai.js" defer></script>
 </body>
