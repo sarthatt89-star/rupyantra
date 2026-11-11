@@ -1,8 +1,8 @@
 // Rupeyantra AI - simple chat API (Vercel Serverless, Node)
 // Needs ONE env variable in Vercel: GEMINI_API_KEY  (free key from https://aistudio.google.com/apikey)
-// Optional: GEMINI_MODEL (default gemini-2.5-flash)
+// Optional: GEMINI_MODEL (default gemini-3.8-flash)
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 const MAX_MESSAGES = 20;          // last N messages are used
 const MAX_TEXT = 12000;           // per message
 const MAX_ATTACH = 3;
