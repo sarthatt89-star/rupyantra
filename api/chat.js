@@ -68,6 +68,19 @@ function build(messages) {
 }
 
 module.exports = async function handler(req, res) {
+  if (req.method === 'GET' && /(^|[?&])check=1(&|$)/.test(String(req.url).split('?')[1] || '')) {
+    // Open /api/chat?check=1 in the browser to see why the chat fails (never shows the key)
+    const k = process.env.GEMINI_API_KEY;
+    if (!k) return send(res, 200, { key_set: false, fix: 'Add GEMINI_API_KEY in Vercel > Settings > Environment Variables, then Redeploy' });
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k },
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Say OK' }] }] })
+      });
+      const t = (await r.text()).replace(k, '***').slice(0, 400);
+      return send(res, 200, { key_set: true, model: MODEL, google_status: r.status, google_reply: t });
+    } catch (e) { return send(res, 200, { key_set: true, model: MODEL, fetch_error: String(e && e.message || e) }); }
+  }
   if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return send(res, 405, { message: 'Use POST' }); }
   const key = process.env.GEMINI_API_KEY;
   if (!key) return send(res, 404, { message: 'GEMINI_API_KEY is not set on the server' });
