@@ -3,6 +3,7 @@
 // Optional: GEMINI_MODEL (default gemini-3.8-flash)
 
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+const FALLBACK = process.env.GEMINI_FALLBACK_MODEL || 'gemini-flash-latest'; // used when the main model is busy
 const MAX_MESSAGES = 20;          // last N messages are used
 const MAX_TEXT = 12000;           // per message
 const MAX_ATTACH = 3;
@@ -78,7 +79,7 @@ module.exports = async function handler(req, res) {
         body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Say OK' }] }] })
       });
       const t = (await r.text()).replace(k, '***').slice(0, 400);
-      return send(res, 200, { key_set: true, model: MODEL, google_status: r.status, google_reply: t });
+      return send(res, 200, { key_set: true, model: MODEL, fallback: FALLBACK, google_status: r.status, google_reply: t });
     } catch (e) { return send(res, 200, { key_set: true, model: MODEL, fetch_error: String(e && e.message || e) }); }
   }
   if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return send(res, 405, { message: 'Use POST' }); }
@@ -94,19 +95,29 @@ module.exports = async function handler(req, res) {
   const contents = build(body.messages);
   if (!contents.length) return send(res, 400, { message: 'Empty message' });
 
+  const payload = JSON.stringify({
+    systemInstruction: { parts: [{ text: SYSTEM }] },
+    contents,
+    generationConfig: { temperature: 0.4, maxOutputTokens: 2048 }
+  });
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 50000);
+  const call = model => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: ctl.signal, body: payload
+  });
+  const sleep = ms => new Promise(x => setTimeout(x, ms));
   try {
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-      signal: ctl.signal,
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM }] },
-        contents,
-        generationConfig: { temperature: 0.4, maxOutputTokens: 2048 }
-      })
-    });
+    // Main model busy (503/500) -> retry once -> then the fallback model. Wrong main model name (404) -> fallback.
+    let r;
+    const plan = FALLBACK === MODEL ? [[MODEL, 2]] : [[MODEL, 2], [FALLBACK, 2]];
+    for (const [model, tries] of plan) {
+      for (let i = 0; i < tries; i++) {
+        r = await call(model);
+        if (r.ok || ![500, 503].includes(r.status)) break;
+        if (i < tries - 1) await sleep(700);
+      }
+      if (r.ok || [400, 403, 429].includes(r.status)) break;
+    }
     if (!r.ok) {
       if (r.status === 429) return send(res, 429, { message: 'Rate limit' });
       console.error('Gemini error', r.status, (await r.text()).slice(0, 300));
