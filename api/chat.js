@@ -1,10 +1,9 @@
 // Rupeyantra AI - simple chat API (Vercel Serverless, Node)
 // Needs ONE env variable in Vercel: GEMINI_API_KEY  (free key from https://aistudio.google.com/apikey)
 // Optional: GEMINI_MODEL (default gemini-3.8-flash), GEMINI_FALLBACK_MODEL
-// Optional backup provider (free): GROQ_API_KEY from https://console.groq.com/keys  (+ GROQ_MODEL)
 
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-const FALLBACK = process.env.GEMINI_FALLBACK_MODEL || 'gemini-flash-latest'; // used when the main model is busy
+const FALLBACK = process.env.GEMINI_FALLBACK_MODEL || ''; // optional second Gemini model, used only if set
 const MAX_MESSAGES = 20;          // last N messages are used
 const MAX_TEXT = 12000;           // per message
 const MAX_ATTACH = 3;
@@ -20,8 +19,6 @@ const SYSTEM = `You are Rupeyantra AI, a friendly finance assistant for people i
 - Do not invent current interest rates, tax slabs or scheme rules. If you are not sure, say so and suggest checking the official website (RBI, SEBI, Income Tax, bank).
 - If a question is not about money or finance, politely say you only help with finance.
 - Never claim an answer is "verified". Never ask for passwords, OTPs, PAN, Aadhaar or card numbers.`;
-
-const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 
 const hits = new Map();
 function limited(ip) {
@@ -71,27 +68,6 @@ function build(messages) {
   return out;
 }
 
-// Backup provider (text only): Groq, OpenAI-compatible API
-async function groq(contents) {
-  const gk = process.env.GROQ_API_KEY;
-  if (!gk) return null;
-  const messages = [{ role: 'system', content: SYSTEM }];
-  for (const c of contents) {
-    const t = c.parts.map(p => p.text || '').join('\n').trim();
-    if (t) messages.push({ role: c.role === 'model' ? 'assistant' : 'user', content: t });
-  }
-  try {
-    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + gk },
-      signal: AbortSignal.timeout(12000),
-      body: JSON.stringify({ model: GROQ_MODEL, messages, temperature: 0.4, max_tokens: 1500 })
-    });
-    if (!r.ok) { console.error('Groq error', r.status); return null; }
-    const j = await r.json();
-    return (j.choices?.[0]?.message?.content || '').trim() || null;
-  } catch { return null; }
-}
-
 module.exports = async function handler(req, res) {
   if (req.method === 'GET' && /(^|[?&])check=1(&|$)/.test(String(req.url).split('?')[1] || '')) {
     // Open /api/chat?check=1 in the browser to see why the chat fails (never shows the key)
@@ -107,8 +83,7 @@ module.exports = async function handler(req, res) {
       } catch (e) { return 'no answer in 15s'; }
     };
     const out = { key_set: true, main_model: MODEL, main: await probe(MODEL) };
-    if (FALLBACK !== MODEL) { out.fallback_model = FALLBACK; out.fallback = await probe(FALLBACK); }
-    out.groq_backup = process.env.GROQ_API_KEY ? 'key set' : 'not set (optional)';
+    if (FALLBACK && FALLBACK !== MODEL) { out.fallback_model = FALLBACK; out.fallback = await probe(FALLBACK); }
     return send(res, 200, out);
   }
   if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return send(res, 405, { message: 'Use POST' }); }
@@ -140,9 +115,9 @@ module.exports = async function handler(req, res) {
   };
   const sleep = ms => new Promise(x => setTimeout(x, ms));
   try {
-    // Main model busy (503/500) -> retry once -> then the fallback model. Wrong main model name (404) -> fallback.
+    // Main model busy (503/500) -> retry (up to 3 times) -> then the optional fallback Gemini model. Wrong main model name (404) -> fallback.
     let r;
-    const plan = FALLBACK === MODEL ? [[MODEL, 2]] : [[MODEL, 2], [FALLBACK, 1]];
+    const plan = FALLBACK && FALLBACK !== MODEL ? [[MODEL, 2], [FALLBACK, 1]] : [[MODEL, 3]];
     for (const [model, tries] of plan) {
       for (let i = 0; i < tries; i++) {
         r = await call(model);
@@ -152,11 +127,6 @@ module.exports = async function handler(req, res) {
       if (r.ok || [400, 403, 429].includes(r.status)) break;
     }
     if (!r.ok) {
-      const hasFile = contents.some(c => c.parts.some(p => p.inline_data));
-      if (!hasFile && r.status !== 400) {
-        const g = await groq(contents);
-        if (g) return send(res, 200, { reply: g });
-      }
       if (r.status === 429) return send(res, 429, { message: 'Rate limit' });
       console.error('Gemini error', r.status, (await r.text()).slice(0, 300));
       return send(res, r.status >= 500 ? 503 : 502, { message: 'AI service error' });
