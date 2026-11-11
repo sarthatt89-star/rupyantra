@@ -6,10 +6,10 @@
 <meta name="robots" content="index,follow">
 <meta name="theme-color" content="#F5F7FB">
 <title>Rupeyantra AI – Free AI Finance Assistant for India</title>
-<meta name="description" content="Use Rupeyantra AI for free EMI, SIP, loan and budget calculations. Explore finance calculators and get clear answers to money questions.">
+<meta name="description" content="Ask Rupeyantra AI about EMIs, SIPs, loans, budgets and savings and get clear answers to money questions.">
 <link rel="canonical" href="https://rupyantra-psi.vercel.app/ai.html">
 <meta property="og:title" content="Rupeyantra AI – Free AI Finance Assistant for India">
-<meta property="og:description" content="Use Rupeyantra AI for free EMI, SIP, loan and budget calculations. Explore finance calculators and get clear answers to money questions.">
+<meta property="og:description" content="Ask Rupeyantra AI about EMIs, SIPs, loans, budgets and savings and get clear answers to money questions.">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Rupeyantra AI">
 <meta property="og:locale" content="en_IN">
@@ -107,23 +107,7 @@ h1{font-size:clamp(26px,6.4vw,38px);line-height:1.15;font-weight:700;letter-spac
 .code iframe{display:block;width:100%;height:240px;border:0;border-top:1px solid var(--line);background:#fff}
 .mdv{padding:10px 12px;max-height:320px;overflow:auto;white-space:normal;font-size:14px;line-height:1.55;border-top:1px solid var(--line)}
 .am{margin:8px 0}.am summary{cursor:pointer;font-size:13.5px;font-weight:600;padding:6px 0}
-.msg.tool{white-space:normal;width:100%;max-width:100%}
-.tool>b{font-size:16px}
-.tf{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:10px 0}
-.tf label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--muted)}
-.tf input{border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:10px;padding:8px 10px;font-size:16px;width:100%}
-.big{font-size:26px;font-weight:700;color:var(--acc);margin:6px 0}
-.big small{display:block;font-size:12.5px;font-weight:500;color:var(--muted)}
-.pie{display:flex;align-items:center;gap:14px;margin:8px 0}
-.pie svg{width:110px;height:110px;flex:none}
-.pie .lg{font-size:13px;display:grid;gap:4px}
-.pie i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
-.lnc{width:100%;height:110px;margin:8px 0;background:var(--bg);border-radius:10px}
-.lgd{font-size:12px;color:var(--muted)}
-.bars{display:flex;gap:10px;align-items:flex-end;height:150px;margin:8px 0;padding:6px 4px 0;background:var(--bg);border-radius:10px}
-.bars .b{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;font-size:11.5px;text-align:center}
-.bars .b span{display:block;width:70%;border-radius:6px 6px 0 0;min-height:2px}
-.bars .b small{color:var(--muted)}
+.card.loading #send{opacity:.5}
 .thinking{background:none!important;border:0!important;box-shadow:none!important;padding:4px 0!important;display:flex;align-items:center;gap:10px;font-weight:600}
 .thinking .dot{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--acc2),var(--acc));color:#fff;display:grid;place-items:center;font-weight:700;animation:pulse 1.4s ease-in-out infinite}
 .thinking .t{color:var(--muted)}
@@ -371,11 +355,11 @@ h1{background:linear-gradient(120deg,var(--text) 30%,var(--acc) 70%,var(--acc2))
   <h2>What Is Rupeyantra AI?</h2>
   <p>Rupeyantra AI is a free finance assistant for people in India. Ask about EMIs, SIPs, loans, budgets and savings in Hindi, Hinglish or English and get a clear explanation, with the calculation shown whenever numbers are involved.</p>
 
-  <h2>Which Calculators Are Available?</h2>
-  <p>When you ask in the chat, these are worked out by a built-in calculator: EMI, SIP, lumpsum and FD maturity, CAGR, simple interest, GST, inflation, budget and savings goals, EMI comparison and SIP scenarios.</p>
+  <h2>What Can I Ask?</h2>
+  <p>Ask about EMIs, SIPs, loans, FDs, inflation, budgets, savings goals and everyday money questions. You can also attach a photo, a PDF or a text file and ask about it.</p>
 
   <h2>How Does Rupeyantra AI Work?</h2>
-  <p>Your question is sent to the Rupeyantra server. Calculations such as EMI or SIP are run by the built-in calculator and checked by a second, independent calculation before the numbers are shown; the AI only explains the result. A "Verified by calculator" note appears only when those checks pass.</p>
+  <p>Your question is sent to the Rupeyantra server. When a calculation is independently checked, a "Verified by calculator" note appears under that answer. If you do not see the note, the answer has not been verified, so please double-check the numbers yourself.</p>
   <p>Answers about interest rates, taxes or government schemes are given only when they can be confirmed from official Indian government or regulator websites. If they cannot be confirmed, the assistant says so instead of guessing.</p>
 
   <h2>Frequently Asked Questions</h2>
@@ -389,7 +373,7 @@ h1{background:linear-gradient(120deg,var(--text) 30%,var(--acc) 70%,var(--acc2))
   <p>Yes. Use the plus menu, choose Create file, and pick a report, CSV sheet, simple web page, text file or JSON. Please check any figures in the file before you use it.</p>
   <a class="up" href="#app">Back to the chat</a>
 </section>
-<noscript><p class="foot">Rupeyantra AI needs JavaScript to run the chat and calculators.</p></noscript>
+<noscript><p class="foot">Rupeyantra AI needs JavaScript to run the chat.</p></noscript>
 <script src="/ai.js" defer></script>
 </body>
 </html>
