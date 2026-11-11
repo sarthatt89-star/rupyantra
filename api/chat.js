@@ -100,16 +100,20 @@ module.exports = async function handler(req, res) {
     contents,
     generationConfig: { temperature: 0.4, maxOutputTokens: 2048 }
   });
-  const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 50000);
-  const call = model => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: ctl.signal, body: payload
-  });
+  // each Google call gets 15 s; a hang counts as "busy" (503) so we move on to retry / fallback
+  const call = async model => {
+    try {
+      return await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
+        signal: AbortSignal.timeout(15000), body: payload
+      });
+    } catch { return { ok: false, status: 503, text: async () => 'timeout' }; }
+  };
   const sleep = ms => new Promise(x => setTimeout(x, ms));
   try {
     // Main model busy (503/500) -> retry once -> then the fallback model. Wrong main model name (404) -> fallback.
     let r;
-    const plan = FALLBACK === MODEL ? [[MODEL, 2]] : [[MODEL, 2], [FALLBACK, 2]];
+    const plan = FALLBACK === MODEL ? [[MODEL, 2]] : [[MODEL, 2], [FALLBACK, 1]];
     for (const [model, tries] of plan) {
       for (let i = 0; i < tries; i++) {
         r = await call(model);
@@ -130,5 +134,5 @@ module.exports = async function handler(req, res) {
   } catch (e) {
     console.error('chat error', e && e.name);
     return send(res, 503, { message: 'AI service unavailable' });
-  } finally { clearTimeout(timer); }
+  }
 };
