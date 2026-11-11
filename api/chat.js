@@ -1,6 +1,7 @@
 // Rupeyantra AI - simple chat API (Vercel Serverless, Node)
 // Needs ONE env variable in Vercel: GEMINI_API_KEY  (free key from https://aistudio.google.com/apikey)
-// Optional: GEMINI_MODEL (default gemini-3.8-flash)
+// Optional: GEMINI_MODEL (default gemini-3.8-flash), GEMINI_FALLBACK_MODEL
+// Optional backup provider (free): GROQ_API_KEY from https://console.groq.com/keys  (+ GROQ_MODEL)
 
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 const FALLBACK = process.env.GEMINI_FALLBACK_MODEL || 'gemini-flash-latest'; // used when the main model is busy
@@ -19,6 +20,8 @@ const SYSTEM = `You are Rupeyantra AI, a friendly finance assistant for people i
 - Do not invent current interest rates, tax slabs or scheme rules. If you are not sure, say so and suggest checking the official website (RBI, SEBI, Income Tax, bank).
 - If a question is not about money or finance, politely say you only help with finance.
 - Never claim an answer is "verified". Never ask for passwords, OTPs, PAN, Aadhaar or card numbers.`;
+
+const GROQ_MODEL = process.env.GROQ_MODEL || 'openai/gpt-oss-120b';
 
 const hits = new Map();
 function limited(ip) {
@@ -68,19 +71,45 @@ function build(messages) {
   return out;
 }
 
+// Backup provider (text only): Groq, OpenAI-compatible API
+async function groq(contents) {
+  const gk = process.env.GROQ_API_KEY;
+  if (!gk) return null;
+  const messages = [{ role: 'system', content: SYSTEM }];
+  for (const c of contents) {
+    const t = c.parts.map(p => p.text || '').join('\n').trim();
+    if (t) messages.push({ role: c.role === 'model' ? 'assistant' : 'user', content: t });
+  }
+  try {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + gk },
+      signal: AbortSignal.timeout(12000),
+      body: JSON.stringify({ model: GROQ_MODEL, messages, temperature: 0.4, max_tokens: 1500 })
+    });
+    if (!r.ok) { console.error('Groq error', r.status); return null; }
+    const j = await r.json();
+    return (j.choices?.[0]?.message?.content || '').trim() || null;
+  } catch { return null; }
+}
+
 module.exports = async function handler(req, res) {
   if (req.method === 'GET' && /(^|[?&])check=1(&|$)/.test(String(req.url).split('?')[1] || '')) {
     // Open /api/chat?check=1 in the browser to see why the chat fails (never shows the key)
     const k = process.env.GEMINI_API_KEY;
     if (!k) return send(res, 200, { key_set: false, fix: 'Add GEMINI_API_KEY in Vercel > Settings > Environment Variables, then Redeploy' });
-    try {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k },
-        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Say OK' }] }] })
-      });
-      const t = (await r.text()).replace(k, '***').slice(0, 400);
-      return send(res, 200, { key_set: true, model: MODEL, fallback: FALLBACK, google_status: r.status, google_reply: t });
-    } catch (e) { return send(res, 200, { key_set: true, model: MODEL, fetch_error: String(e && e.message || e) }); }
+    const probe = async model => {
+      try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k }, signal: AbortSignal.timeout(12000),
+          body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Say OK' }] }] })
+        });
+        return r.status + (r.ok ? ' OK' : ' ' + (await r.text()).replace(k, '***').replace(/\s+/g, ' ').slice(0, 160));
+      } catch (e) { return 'no answer in 15s'; }
+    };
+    const out = { key_set: true, main_model: MODEL, main: await probe(MODEL) };
+    if (FALLBACK !== MODEL) { out.fallback_model = FALLBACK; out.fallback = await probe(FALLBACK); }
+    out.groq_backup = process.env.GROQ_API_KEY ? 'key set' : 'not set (optional)';
+    return send(res, 200, out);
   }
   if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return send(res, 405, { message: 'Use POST' }); }
   const key = process.env.GEMINI_API_KEY;
@@ -100,12 +129,12 @@ module.exports = async function handler(req, res) {
     contents,
     generationConfig: { temperature: 0.4, maxOutputTokens: 2048 }
   });
-  // each Google call gets 15 s; a hang counts as "busy" (503) so we move on to retry / fallback
+  // each call gets 12 s; a hang counts as "busy" (503) so we move on to retry / fallback
   const call = async model => {
     try {
       return await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-        signal: AbortSignal.timeout(15000), body: payload
+        signal: AbortSignal.timeout(12000), body: payload
       });
     } catch { return { ok: false, status: 503, text: async () => 'timeout' }; }
   };
@@ -123,6 +152,11 @@ module.exports = async function handler(req, res) {
       if (r.ok || [400, 403, 429].includes(r.status)) break;
     }
     if (!r.ok) {
+      const hasFile = contents.some(c => c.parts.some(p => p.inline_data));
+      if (!hasFile && r.status !== 400) {
+        const g = await groq(contents);
+        if (g) return send(res, 200, { reply: g });
+      }
       if (r.status === 429) return send(res, 429, { message: 'Rate limit' });
       console.error('Gemini error', r.status, (await r.text()).slice(0, 300));
       return send(res, r.status >= 500 ? 503 : 502, { message: 'AI service error' });
