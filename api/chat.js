@@ -1,8 +1,8 @@
 // Rupeyantra AI - simple chat API (Vercel Serverless, Node)
 // Needs ONE env variable in Vercel: GEMINI_API_KEY  (free key from https://aistudio.google.com/apikey)
-// Optional: GEMINI_MODEL (default gemini-2.5-flash), GEMINI_FALLBACK_MODEL (default gemini-flash-latest)
+// Optional: GEMINI_MODEL (default gemini-3.8-flash), GEMINI_FALLBACK_MODEL (default gemini-flash-latest)
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 const FALLBACK = process.env.GEMINI_FALLBACK_MODEL || 'gemini-flash-latest'; // second model, used if the main one is busy or its name is wrong
 const MAX_MESSAGES = 20;          // last N messages are used
 const MAX_TEXT = 12000;           // per message
@@ -10,7 +10,7 @@ const MAX_ATTACH = 3;
 const MAX_B64 = 3300000;          // total attachment size (base64 chars)
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 const LIMIT = 20, WINDOW = 60000; // 20 requests / minute / IP (per warm server)
-const CALL_TIMEOUT = 18000;       // each Gemini call may take up to 18 s (2.5 models "think" first)
+const CALL_TIMEOUT = 18000;       // each Gemini call may take up to 18 s (newer Gemini models "think" first)
 
 const SYSTEM = `You are Rupeyantra AI, a friendly finance assistant for people in India.
 - Reply in the user's language (English, Hindi or Hinglish). Keep answers short, clear and simple.
@@ -119,12 +119,14 @@ module.exports = async function handler(req, res) {
     // Main model busy (503/500) -> retry -> then the fallback Gemini model.
     // Wrong main model name (404) -> fallback straight away.
     let r;
-    const plan = FALLBACK && FALLBACK !== MODEL ? [[MODEL, 2], [FALLBACK, 1]] : [[MODEL, 3]];
+    const t0 = Date.now();            // stop retrying after ~35 s (the page gives up at 55 s)
+    const plan = FALLBACK && FALLBACK !== MODEL ? [[MODEL, 3], [FALLBACK, 2]] : [[MODEL, 4]];
     for (const [model, tries] of plan) {
       for (let i = 0; i < tries; i++) {
+        if (r && Date.now() - t0 > 35000) break;
         r = await call(model);
         if (r.ok || ![500, 503].includes(r.status)) break;
-        if (i < tries - 1) await sleep(700);
+        if (i < tries - 1) await sleep(1000);
       }
       if (r.ok || [400, 403, 429].includes(r.status)) break;
     }
