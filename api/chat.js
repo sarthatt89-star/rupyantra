@@ -1,15 +1,16 @@
 // Rupeyantra AI - simple chat API (Vercel Serverless, Node)
 // Needs ONE env variable in Vercel: GEMINI_API_KEY  (free key from https://aistudio.google.com/apikey)
-// Optional: GEMINI_MODEL (default gemini-3.8-flash), GEMINI_FALLBACK_MODEL
+// Optional: GEMINI_MODEL (default gemini-2.5-flash), GEMINI_FALLBACK_MODEL (default gemini-flash-latest)
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-const FALLBACK = process.env.GEMINI_FALLBACK_MODEL || ''; // optional second Gemini model, used only if set
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+const FALLBACK = process.env.GEMINI_FALLBACK_MODEL || 'gemini-flash-latest'; // second model, used if the main one is busy or its name is wrong
 const MAX_MESSAGES = 20;          // last N messages are used
 const MAX_TEXT = 12000;           // per message
 const MAX_ATTACH = 3;
 const MAX_B64 = 3300000;          // total attachment size (base64 chars)
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 const LIMIT = 20, WINDOW = 60000; // 20 requests / minute / IP (per warm server)
+const CALL_TIMEOUT = 18000;       // each Gemini call may take up to 18 s (2.5 models "think" first)
 
 const SYSTEM = `You are Rupeyantra AI, a friendly finance assistant for people in India.
 - Reply in the user's language (English, Hindi or Hinglish). Keep answers short, clear and simple.
@@ -76,7 +77,7 @@ module.exports = async function handler(req, res) {
     const probe = async model => {
       try {
         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k }, signal: AbortSignal.timeout(12000),
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k }, signal: AbortSignal.timeout(15000),
           body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Say OK' }] }] })
         });
         return r.status + (r.ok ? ' OK' : ' ' + (await r.text()).replace(k, '***').replace(/\s+/g, ' ').slice(0, 160));
@@ -102,20 +103,21 @@ module.exports = async function handler(req, res) {
   const payload = JSON.stringify({
     systemInstruction: { parts: [{ text: SYSTEM }] },
     contents,
-    generationConfig: { temperature: 0.4, maxOutputTokens: 2048 }
+    generationConfig: { temperature: 0.4, maxOutputTokens: 4096 }
   });
-  // each call gets 12 s; a hang counts as "busy" (503) so we move on to retry / fallback
+  // each call gets CALL_TIMEOUT; a hang counts as "busy" (503) so we move on to retry / fallback
   const call = async model => {
     try {
       return await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-        signal: AbortSignal.timeout(12000), body: payload
+        signal: AbortSignal.timeout(CALL_TIMEOUT), body: payload
       });
     } catch { return { ok: false, status: 503, text: async () => 'timeout' }; }
   };
   const sleep = ms => new Promise(x => setTimeout(x, ms));
   try {
-    // Main model busy (503/500) -> retry (up to 3 times) -> then the optional fallback Gemini model. Wrong main model name (404) -> fallback.
+    // Main model busy (503/500) -> retry -> then the fallback Gemini model.
+    // Wrong main model name (404) -> fallback straight away.
     let r;
     const plan = FALLBACK && FALLBACK !== MODEL ? [[MODEL, 2], [FALLBACK, 1]] : [[MODEL, 3]];
     for (const [model, tries] of plan) {
