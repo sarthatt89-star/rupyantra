@@ -1,17 +1,19 @@
-// Rupeyantra AI - simple chat API (Vercel Serverless, Node)
-// Needs ONE env variable in Vercel: GEMINI_API_KEY  (free key from https://aistudio.google.com/apikey)
-// Optional: GEMINI_MODEL (default gemini-3.8-flash), GEMINI_FALLBACK_MODEL (default gemini-3.7-flash)
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-const FALLBACK = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.7-flash'; // second model, used if the main one is busy or its name is wrong
-const MAX_MESSAGES = 20;          // last N messages are used
-const MAX_TEXT = 12000;           // per message
+ // Rupeyantra AI - simple chat API (Vercel Serverless, Node)
+ // Needs ONE env variable in Vercel: GEMINI_API_KEY
+ // Optional: GEMINI_MODEL, GEMINI_FALLBACK_MODEL
+
+const MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
+const FALLBACK = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.8-flash'; // second model, used if the main one is busy or its name is wrong
+
+const MAX_MESSAGES = 20;
+const MAX_TEXT = 12000;
 const MAX_ATTACH = 3;
-const MAX_B64 = 3300000;          // total attachment size (base64 chars)
+const MAX_B64 = 3300000;
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-const LIMIT = 20, WINDOW = 60000; // 20 requests / minute / IP (per warm server)
-const CALL_TIMEOUT = 18000;       // each Gemini call may take up to 18 s
-const THINK = { thinkingConfig: { thinkingLevel: 'low' } }; // Gemini 3.x thinks a lot by default (slow); 'low' = fast replies
+const LIMIT = 20, WINDOW = 60000;
+const CALL_TIMEOUT = 18000;
+const THINK = { thinkingConfig: { thinkingLevel: 'low' } };
 
 const SYSTEM = `You are Rupeyantra AI, a friendly finance assistant for people in India.
 - Reply in the user's language (English, Hindi or Hinglish). Keep answers short, clear and simple.
@@ -23,9 +25,14 @@ const SYSTEM = `You are Rupeyantra AI, a friendly finance assistant for people i
 - Never claim an answer is "verified". Never ask for passwords, OTPs, PAN, Aadhaar or card numbers.`;
 
 const hits = new Map();
+
 function limited(ip) {
   const now = Date.now(), r = hits.get(ip);
-  if (!r || now - r.t > WINDOW) { hits.set(ip, { t: now, n: 1 }); if (hits.size > 5000) hits.clear(); return false; }
+  if (!r || now - r.t > WINDOW) {
+    hits.set(ip, { t: now, n: 1 });
+    if (hits.size > 5000) hits.clear();
+    return false;
+  }
   return ++r.n > LIMIT;
 }
 
@@ -39,109 +46,240 @@ function send(res, code, obj) {
 async function readBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
   let s = '';
-  for await (const c of req) { s += c; if (s.length > 5e6) throw new Error('too big'); }
+  for await (const c of req) {
+    s += c;
+    if (s.length > 5e6) throw new Error('too big');
+  }
   return JSON.parse(s || '{}');
 }
 
 function build(messages) {
   let attached = 0, b64 = 0;
   const out = [];
+
   for (const m of messages.slice(-MAX_MESSAGES)) {
     if (!m || (m.role !== 'user' && m.role !== 'assistant')) continue;
+
     const text = String(m.content || '').slice(0, MAX_TEXT);
     const parts = [];
+
     if (text) parts.push({ text });
+
     if (m.role === 'user' && Array.isArray(m.attachments)) {
       for (const a of m.attachments.slice(0, MAX_ATTACH)) {
         if (!a || !ALLOWED_MIME.includes(a.mime) || typeof a.data !== 'string') continue;
         if (!/^[A-Za-z0-9+/=]+$/.test(a.data)) continue;
+
         b64 += a.data.length;
         if (attached >= MAX_ATTACH || b64 > MAX_B64) continue;
+
         attached++;
-        parts.push({ inline_data: { mime_type: a.mime, data: a.data } });
+        parts.push({
+          inline_data: {
+            mime_type: a.mime,
+            data: a.data
+          }
+        });
       }
     }
+
     if (!parts.length) continue;
+
     const role = m.role === 'assistant' ? 'model' : 'user';
-    if (out.length && out[out.length - 1].role === role) out[out.length - 1].parts.push(...parts);
-    else out.push({ role, parts });
+
+    if (out.length && out[out.length - 1].role === role) {
+      out[out.length - 1].parts.push(...parts);
+    } else {
+      out.push({ role, parts });
+    }
   }
+
   while (out.length && out[0].role !== 'user') out.shift();
+
   return out;
 }
 
 module.exports = async function handler(req, res) {
+
   if (req.method === 'GET' && /(^|[?&])check=1(&|$)/.test(String(req.url).split('?')[1] || '')) {
-    // Open /api/chat?check=1 in the browser to see why the chat fails (never shows the key)
+
+    // Open /api/chat?check=1 in the browser to see why the chat fails
     const k = process.env.GEMINI_API_KEY;
-    if (!k) return send(res, 200, { key_set: false, fix: 'Add GEMINI_API_KEY in Vercel > Settings > Environment Variables, then Redeploy' });
+
+    if (!k) return send(res, 200, {
+      key_set: false,
+      fix: 'Add GEMINI_API_KEY in Vercel > Settings > Environment Variables, then Redeploy'
+    });
+
     const probe = async model => {
       try {
         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k }, signal: AbortSignal.timeout(20000),
-          body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Say OK' }] }], generationConfig: THINK })
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': k
+          },
+          signal: AbortSignal.timeout(20000),
+          body: JSON.stringify({
+            contents: [{
+              role: 'user',
+              parts: [{ text: 'Say OK' }]
+            }],
+            generationConfig: THINK
+          })
         });
+
         return r.status + (r.ok ? ' OK' : ' ' + (await r.text()).replace(k, '***').replace(/\s+/g, ' ').slice(0, 160));
-      } catch (e) { return 'no answer in 20s'; }
+
+      } catch (e) {
+        return 'no answer in 20s';
+      }
     };
-    const out = { key_set: true, main_model: MODEL, main: await probe(MODEL) };
-    if (FALLBACK && FALLBACK !== MODEL) { out.fallback_model = FALLBACK; out.fallback = await probe(FALLBACK); }
+
+    const out = {
+      key_set: true,
+      main_model: MODEL,
+      main: await probe(MODEL)
+    };
+
+    if (FALLBACK && FALLBACK !== MODEL) {
+      out.fallback_model = FALLBACK;
+      out.fallback = await probe(FALLBACK);
+    }
+
     return send(res, 200, out);
   }
-  if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return send(res, 405, { message: 'Use POST' }); }
+
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST');
+    return send(res, 405, { message: 'Use POST' });
+  }
+
   const key = process.env.GEMINI_API_KEY;
-  if (!key) return send(res, 404, { message: 'GEMINI_API_KEY is not set on the server' });
+
+  if (!key) return send(res, 404, {
+    message: 'GEMINI_API_KEY is not set on the server'
+  });
 
   const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
-  if (limited(ip)) return send(res, 429, { message: 'Too many requests' });
+
+  if (limited(ip)) return send(res, 429, {
+    message: 'Too many requests'
+  });
 
   let body;
-  try { body = await readBody(req); } catch { return send(res, 400, { message: 'Bad request' }); }
-  if (!Array.isArray(body.messages)) return send(res, 400, { message: 'messages missing' });
+
+  try {
+    body = await readBody(req);
+  } catch {
+    return send(res, 400, { message: 'Bad request' });
+  }
+
+  if (!Array.isArray(body.messages)) {
+    return send(res, 400, { message: 'messages missing' });
+  }
+
   const contents = build(body.messages);
-  if (!contents.length) return send(res, 400, { message: 'Empty message' });
+
+  if (!contents.length) {
+    return send(res, 400, { message: 'Empty message' });
+  }
 
   const payload = JSON.stringify({
-    systemInstruction: { parts: [{ text: SYSTEM }] },
+    systemInstruction: {
+      parts: [{ text: SYSTEM }]
+    },
     contents,
-    generationConfig: { maxOutputTokens: 4096, ...THINK }
+    generationConfig: {
+      maxOutputTokens: 4096,
+      ...THINK
+    }
   });
-  // each call gets CALL_TIMEOUT; a hang counts as "busy" (503) so we move on to retry / fallback
+
+  // each call gets CALL_TIMEOUT
   const call = async model => {
     try {
       return await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-        signal: AbortSignal.timeout(CALL_TIMEOUT), body: payload
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': key
+        },
+        signal: AbortSignal.timeout(CALL_TIMEOUT),
+        body: payload
       });
-    } catch { return { ok: false, status: 503, text: async () => 'timeout' }; }
+
+    } catch {
+      return {
+        ok: false,
+        status: 503,
+        text: async () => 'timeout'
+      };
+    }
   };
+
   const sleep = ms => new Promise(x => setTimeout(x, ms));
+
   try {
-    // Main model busy (503/500) -> retry -> then the fallback Gemini model.
-    // Wrong main model name (404) -> fallback straight away.
+
+    // Main model busy -> retry -> then fallback model
     let r;
-    const t0 = Date.now();            // stop retrying after ~35 s (the page gives up at 55 s)
-    const plan = FALLBACK && FALLBACK !== MODEL ? [[MODEL, 3], [FALLBACK, 2]] : [[MODEL, 4]];
+    const t0 = Date.now();
+
+    const plan = FALLBACK && FALLBACK !== MODEL
+      ? [[MODEL, 3], [FALLBACK, 2]]
+      : [[MODEL, 4]];
+
     for (const [model, tries] of plan) {
+
       for (let i = 0; i < tries; i++) {
+
         if (r && Date.now() - t0 > 35000) break;
+
         r = await call(model);
+
         if (r.ok || ![500, 503].includes(r.status)) break;
+
         if (i < tries - 1) await sleep(1000);
       }
+
       if (r.ok || [400, 403, 429].includes(r.status)) break;
     }
+
     if (!r.ok) {
-      if (r.status === 429) return send(res, 429, { message: 'Rate limit' });
+
+      if (r.status === 429) {
+        return send(res, 429, { message: 'Rate limit' });
+      }
+
       console.error('Gemini error', r.status, (await r.text()).slice(0, 300));
-      return send(res, r.status >= 500 ? 503 : 502, { message: 'AI service error' });
+
+      return send(res, r.status >= 500 ? 503 : 502, {
+        message: 'AI service error'
+      });
     }
+
     const j = await r.json();
-    const reply = (j.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('').trim();
-    if (!reply) return send(res, 200, { reply: 'I could not answer that. Please rephrase your question.' });
-    return send(res, 200, { reply });   // no "verified" flag: nothing here is verified
+
+    const reply = (j.candidates?.[0]?.content?.parts || [])
+      .map(p => p.text || '')
+      .join('')
+      .trim();
+
+    if (!reply) {
+      return send(res, 200, {
+        reply: 'I could not answer that. Please rephrase your question.'
+      });
+    }
+
+    return send(res, 200, { reply });
+
   } catch (e) {
+
     console.error('chat error', e && e.name);
-    return send(res, 503, { message: 'AI service unavailable' });
+
+    return send(res, 503, {
+      message: 'AI service unavailable'
+    });
   }
 };
