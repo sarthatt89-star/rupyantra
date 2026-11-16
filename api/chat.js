@@ -1,19 +1,18 @@
 
- // Rupeyantra AI - simple chat API (Vercel Serverless, Node)
- // Needs ONE env variable in Vercel: GEMINI_API_KEY
- // Optional: GEMINI_MODEL, GEMINI_FALLBACK_MODEL
+// Rupeyantra AI - Groq Chat API (Vercel Serverless, Node)
+// Required Vercel env variable: GROQ_API_KEY
+// Optional: GROQ_MODEL, GROQ_FALLBACK_MODEL
 
-const MODEL = process.env.GEMINI_MODEL || 'gemini-3.6-flash';
-const FALLBACK = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.8-flash'; // second model, used if the main one is busy or its name is wrong
+const MODEL = process.env.GROQ_MODEL || 'qwen/qwen3.8-27b';
+const FALLBACK = process.env.GROQ_FALLBACK_MODEL || 'qwen/qwen3.6-27b';
 
 const MAX_MESSAGES = 20;
 const MAX_TEXT = 12000;
 const MAX_ATTACH = 3;
 const MAX_B64 = 3300000;
-const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp'];
 const LIMIT = 20, WINDOW = 60000;
 const CALL_TIMEOUT = 18000;
-const THINK = { thinkingConfig: { thinkingLevel: 'low' } };
 
 const SYSTEM = `You are Rupeyantra AI, a friendly finance assistant for people in India.
 - Reply in the user's language (English, Hindi or Hinglish). Keep answers short, clear and simple.
@@ -28,11 +27,13 @@ const hits = new Map();
 
 function limited(ip) {
   const now = Date.now(), r = hits.get(ip);
+
   if (!r || now - r.t > WINDOW) {
     hits.set(ip, { t: now, n: 1 });
     if (hits.size > 5000) hits.clear();
     return false;
   }
+
   return ++r.n > LIMIT;
 }
 
@@ -45,11 +46,14 @@ function send(res, code, obj) {
 
 async function readBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
+
   let s = '';
+
   for await (const c of req) {
     s += c;
     if (s.length > 5e6) throw new Error('too big');
   }
+
   return JSON.parse(s || '{}');
 }
 
@@ -63,21 +67,24 @@ function build(messages) {
     const text = String(m.content || '').slice(0, MAX_TEXT);
     const parts = [];
 
-    if (text) parts.push({ text });
+    if (text) {
+      parts.push({ type: 'text', text });
+    }
 
     if (m.role === 'user' && Array.isArray(m.attachments)) {
       for (const a of m.attachments.slice(0, MAX_ATTACH)) {
         if (!a || !ALLOWED_MIME.includes(a.mime) || typeof a.data !== 'string') continue;
         if (!/^[A-Za-z0-9+/=]+$/.test(a.data)) continue;
 
-        b64 += a.data.length;
-        if (attached >= MAX_ATTACH || b64 > MAX_B64) continue;
+        if (attached >= MAX_ATTACH || b64 + a.data.length > MAX_B64) continue;
 
+        b64 += a.data.length;
         attached++;
+
         parts.push({
-          inline_data: {
-            mime_type: a.mime,
-            data: a.data
+          type: 'image_url',
+          image_url: {
+            url: `data:${a.mime};base64,${a.data}`
           }
         });
       }
@@ -85,12 +92,22 @@ function build(messages) {
 
     if (!parts.length) continue;
 
-    const role = m.role === 'assistant' ? 'model' : 'user';
+    const role = m.role;
+
+    const content = role === 'assistant'
+      ? text
+      : parts;
 
     if (out.length && out[out.length - 1].role === role) {
-      out[out.length - 1].parts.push(...parts);
+      const previous = out[out.length - 1];
+
+      if (Array.isArray(previous.content)) {
+        previous.content.push(...parts);
+      } else {
+        previous.content += '\n' + text;
+      }
     } else {
-      out.push({ role, parts });
+      out.push({ role, content });
     }
   }
 
@@ -101,35 +118,48 @@ function build(messages) {
 
 module.exports = async function handler(req, res) {
 
-  if (req.method === 'GET' && /(^|[?&])check=1(&|$)/.test(String(req.url).split('?')[1] || '')) {
+  // API connection check
+  if (req.method === 'GET' &&
+      /(^|[?&])check=1(&|$)/.test(String(req.url).split('?')[1] || '')) {
 
-    // Open /api/chat?check=1 in the browser to see why the chat fails
-    const k = process.env.GEMINI_API_KEY;
+    const k = process.env.GROQ_API_KEY;
 
-    if (!k) return send(res, 200, {
-      key_set: false,
-      fix: 'Add GEMINI_API_KEY in Vercel > Settings > Environment Variables, then Redeploy'
-    });
+    if (!k) {
+      return send(res, 200, {
+        key_set: false,
+        fix: 'Add GROQ_API_KEY in Vercel Environment Variables, then Redeploy'
+      });
+    }
 
     const probe = async model => {
       try {
-        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': k
-          },
-          signal: AbortSignal.timeout(20000),
-          body: JSON.stringify({
-            contents: [{
-              role: 'user',
-              parts: [{ text: 'Say OK' }]
-            }],
-            generationConfig: THINK
-          })
-        });
+        const r = await fetch(
+          'https://api.groq.com/openai/v1/chat/completions',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${k}`
+            },
+            signal: AbortSignal.timeout(20000),
+            body: JSON.stringify({
+              model,
+              messages: [
+                { role: 'user', content: 'Say OK' }
+              ],
+              max_completion_tokens: 20
+            })
+          }
+        );
 
-        return r.status + (r.ok ? ' OK' : ' ' + (await r.text()).replace(k, '***').replace(/\s+/g, ' ').slice(0, 160));
+        return r.status + (
+          r.ok
+            ? ' OK'
+            : ' ' + (await r.text())
+                .replace(k, '***')
+                .replace(/\s+/g, ' ')
+                .slice(0, 160)
+        );
 
       } catch (e) {
         return 'no answer in 20s';
@@ -150,22 +180,26 @@ module.exports = async function handler(req, res) {
     return send(res, 200, out);
   }
 
+  // POST only
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
     return send(res, 405, { message: 'Use POST' });
   }
 
-  const key = process.env.GEMINI_API_KEY;
+  const key = process.env.GROQ_API_KEY;
 
-  if (!key) return send(res, 404, {
-    message: 'GEMINI_API_KEY is not set on the server'
-  });
+  if (!key) {
+    return send(res, 404, {
+      message: 'GROQ_API_KEY is not set on the server'
+    });
+  }
 
-  const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+  const ip = String(req.headers['x-forwarded-for'] || '')
+    .split(',')[0].trim() || 'unknown';
 
-  if (limited(ip)) return send(res, 429, {
-    message: 'Too many requests'
-  });
+  if (limited(ip)) {
+    return send(res, 429, { message: 'Too many requests' });
+  }
 
   let body;
 
@@ -179,6 +213,20 @@ module.exports = async function handler(req, res) {
     return send(res, 400, { message: 'messages missing' });
   }
 
+  // PDF is not accepted as inline image data
+  const hasPdf = body.messages.some(m =>
+    m &&
+    m.role === 'user' &&
+    Array.isArray(m.attachments) &&
+    m.attachments.some(a => a && a.mime === 'application/pdf')
+  );
+
+  if (hasPdf) {
+    return send(res, 400, {
+      message: 'PDF attachments are not supported here. Please paste the PDF text instead.'
+    });
+  }
+
   const contents = build(body.messages);
 
   if (!contents.length) {
@@ -186,28 +234,32 @@ module.exports = async function handler(req, res) {
   }
 
   const payload = JSON.stringify({
-    systemInstruction: {
-      parts: [{ text: SYSTEM }]
-    },
-    contents,
-    generationConfig: {
-      maxOutputTokens: 4096,
-      ...THINK
-    }
+    model: MODEL,
+    messages: [
+      { role: 'system', content: SYSTEM },
+      ...contents
+    ],
+    max_completion_tokens: 4096
   });
 
-  // each call gets CALL_TIMEOUT
+  // Groq API call
   const call = async model => {
     try {
-      return await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': key
-        },
-        signal: AbortSignal.timeout(CALL_TIMEOUT),
-        body: payload
-      });
+      const requestBody = JSON.parse(payload);
+      requestBody.model = model;
+
+      return await fetch(
+        'https://api.groq.com/openai/v1/chat/completions',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${key}`
+          },
+          signal: AbortSignal.timeout(CALL_TIMEOUT),
+          body: JSON.stringify(requestBody)
+        }
+      );
 
     } catch {
       return {
@@ -221,8 +273,7 @@ module.exports = async function handler(req, res) {
   const sleep = ms => new Promise(x => setTimeout(x, ms));
 
   try {
-
-    // Main model busy -> retry -> then fallback model
+    // Main model retry -> fallback model
     let r;
     const t0 = Date.now();
 
@@ -252,7 +303,11 @@ module.exports = async function handler(req, res) {
         return send(res, 429, { message: 'Rate limit' });
       }
 
-      console.error('Gemini error', r.status, (await r.text()).slice(0, 300));
+      console.error(
+        'Groq error',
+        r.status,
+        (await r.text()).slice(0, 300)
+      );
 
       return send(res, r.status >= 500 ? 503 : 502, {
         message: 'AI service error'
@@ -261,10 +316,7 @@ module.exports = async function handler(req, res) {
 
     const j = await r.json();
 
-    const reply = (j.candidates?.[0]?.content?.parts || [])
-      .map(p => p.text || '')
-      .join('')
-      .trim();
+    const reply = j.choices?.[0]?.message?.content?.trim() || '';
 
     if (!reply) {
       return send(res, 200, {
