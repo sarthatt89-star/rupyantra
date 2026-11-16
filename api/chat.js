@@ -1,16 +1,17 @@
 // Rupeyantra AI - simple chat API (Vercel Serverless, Node)
 // Needs ONE env variable in Vercel: GEMINI_API_KEY  (free key from https://aistudio.google.com/apikey)
-// Optional: GEMINI_MODEL (default gemini-3.8-flash), GEMINI_FALLBACK_MODEL (default gemini-flash-latest)
+// Optional: GEMINI_MODEL (default gemini-3.8-flash), GEMINI_FALLBACK_MODEL (default gemini-3.7-flash)
 
 const MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-const FALLBACK = process.env.GEMINI_FALLBACK_MODEL || 'gemini-flash-latest'; // second model, used if the main one is busy or its name is wrong
+const FALLBACK = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.7-flash'; // second model, used if the main one is busy or its name is wrong
 const MAX_MESSAGES = 20;          // last N messages are used
 const MAX_TEXT = 12000;           // per message
 const MAX_ATTACH = 3;
 const MAX_B64 = 3300000;          // total attachment size (base64 chars)
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 const LIMIT = 20, WINDOW = 60000; // 20 requests / minute / IP (per warm server)
-const CALL_TIMEOUT = 18000;       // each Gemini call may take up to 18 s (newer Gemini models "think" first)
+const CALL_TIMEOUT = 18000;       // each Gemini call may take up to 18 s
+const THINK = { thinkingConfig: { thinkingLevel: 'low' } }; // Gemini 3.x thinks a lot by default (slow); 'low' = fast replies
 
 const SYSTEM = `You are Rupeyantra AI, a friendly finance assistant for people in India.
 - Reply in the user's language (English, Hindi or Hinglish). Keep answers short, clear and simple.
@@ -77,11 +78,11 @@ module.exports = async function handler(req, res) {
     const probe = async model => {
       try {
         const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k }, signal: AbortSignal.timeout(15000),
-          body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Say OK' }] }] })
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k }, signal: AbortSignal.timeout(20000),
+          body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Say OK' }] }], generationConfig: THINK })
         });
         return r.status + (r.ok ? ' OK' : ' ' + (await r.text()).replace(k, '***').replace(/\s+/g, ' ').slice(0, 160));
-      } catch (e) { return 'no answer in 15s'; }
+      } catch (e) { return 'no answer in 20s'; }
     };
     const out = { key_set: true, main_model: MODEL, main: await probe(MODEL) };
     if (FALLBACK && FALLBACK !== MODEL) { out.fallback_model = FALLBACK; out.fallback = await probe(FALLBACK); }
@@ -103,7 +104,7 @@ module.exports = async function handler(req, res) {
   const payload = JSON.stringify({
     systemInstruction: { parts: [{ text: SYSTEM }] },
     contents,
-    generationConfig: { temperature: 0.4, maxOutputTokens: 4096 }
+    generationConfig: { maxOutputTokens: 4096, ...THINK }
   });
   // each call gets CALL_TIMEOUT; a hang counts as "busy" (503) so we move on to retry / fallback
   const call = async model => {
