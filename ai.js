@@ -52,7 +52,7 @@ function printEl(el){
   const f=document.createElement('iframe');f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0';
   const c=el.cloneNode(true);c.querySelectorAll('.tools,.opts,.vf,iframe,.code .h').forEach(x=>x.remove());
   c.querySelectorAll('input').forEach(x=>x.setAttribute('value',x.value));c.querySelectorAll('details').forEach(x=>x.setAttribute('open',''));
-  f.srcdoc='<!doctype html><meta charset="utf-8"><title>Rupeyantra AI</title><style>body{font:14px/1.6 system-ui,sans-serif;padding:20px;color:#000}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:5px;text-align:left}pre{white-space:pre-wrap}span>div:not(.tw):not(.code){white-space:pre-wrap}.tf{display:grid;gap:6px}label{font-size:12px;color:#444}.lgd{font-size:12px;color:#555}.pie{display:flex;gap:12px;align-items:center}.pie svg{width:100px}.ln{width:100%;height:100px}.bars{display:flex;gap:8px;align-items:flex-end;height:140px}.bars .b{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;font-size:11px}.bars .b span{display:block;width:70%}.big{font-size:22px;font-weight:700}.big small{display:block;font-size:12px;font-weight:400}</style><h2>Rupeyantra AI</h2>'+c.innerHTML;
+  f.srcdoc='<!doctype html><meta charset="utf-8"><title>Rupeyantra AI</title><style>body{font:14px/1.6 system-ui,sans-serif;padding:20px;color:#000}table{border-collapse:collapse;width:100%}td,th{border:1px solid #999;padding:5px;text-align:left}pre{white-space:pre-wrap}span>div:not(.tw):not(.code){white-space:pre-wrap}.blks{display:grid;gap:10px}.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.stat{border:1px solid #bbb;padding:6px 8px}.stat .l{display:block;font-size:11px;color:#555}.stat .v{font-weight:700}.blk{margin:10px 0}.blk h4{margin:0 0 6px;font-size:13px}.blk svg{width:100%;height:auto}.lg{font-size:11px;color:#555}.lg span{margin-right:12px}.lg i{display:inline-block;width:9px;height:9px;margin-right:4px}.hb{display:grid;grid-template-columns:90px 1fr auto;gap:6px;font-size:12px;margin:4px 0}.hb .t{background:#eee;height:10px}.hb .t b{display:block;height:100%}.ax{font-size:9px;fill:#555}.dn svg{width:120px}</style><h2>Rupeyantra AI</h2>'+c.innerHTML;
   f.onload=()=>{try{f.contentWindow.focus();f.contentWindow.print()}catch(_){window.print()}setTimeout(()=>f.remove(),60000)};
   document.body.appendChild(f);
 }
@@ -117,6 +117,193 @@ function speak(t,btn){
 }
 
 
+/* Result blocks (stat cards, charts, tables) sent by the calculator system.
+   Built only with DOM methods (never innerHTML), so server data can never run as code. */
+const SVGNS='http://www.w3.org/2000/svg';
+const COLORS=['var(--c0,#3B5BDB)','var(--c1,#0E9AA7)','var(--c2,#7C5CFA)','var(--c3,#F59E0B)'];
+const isNum=n=>typeof n==='number'&&isFinite(n);
+const txt=(v,max)=>String(v==null?'':v).slice(0,max||60);
+const trim0=s=>s.replace(/\.?0+$/,'');
+const money=n=>{const a=Math.abs(n);return a>=1e7?'₹'+trim0((n/1e7).toFixed(2))+' Cr':a>=1e5?'₹'+trim0((n/1e5).toFixed(2))+' L':'₹'+Math.round(n).toLocaleString('en-IN')};
+const fmtOf=b=>b&&b.unit==='%'?(n=>trim0(Number(n).toFixed(2))+'%'):b&&b.unit==='yrs'?(n=>trim0(Number(n).toFixed(1))+' yrs'):money;
+function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+function svg(tag,attrs){const e=document.createElementNS(SVGNS,tag);for(const k in attrs||{})e.setAttribute(k,attrs[k]);return e}
+function svgText(x,y,s,anchor){const t=svg('text',{x,y,class:'ax','text-anchor':anchor||'start'});t.textContent=s;return t}
+function legend(items){const l=el('div','lg');items.forEach(it=>{const s=el('span');const i=el('i');i.style.background=it.color;s.appendChild(i);s.appendChild(document.createTextNode(it.text));l.appendChild(s)});return l}
+function frame(title,label){const b=el('div','blk');b.setAttribute('role','group');b.setAttribute('aria-label',label||title);if(title)b.appendChild(el('h4',null,txt(title,80)));return b}
+function cleanSeries(b){
+  const x=Array.isArray(b.x)?b.x.slice(0,120).map(v=>txt(v,20)):[];
+  const series=(Array.isArray(b.series)?b.series:[]).slice(0,4).map(s=>({name:txt(s&&s.name,30),values:Array.isArray(s&&s.values)?s.values.slice(0,x.length).map(v=>isNum(v)?v:0):[]})).filter(s=>s.values.length);
+  return x.length&&series.length?{x,series}:null;
+}
+const shortX=s=>s.replace(/^Year\s+/i,'');
+function xLabels(g,x,W,H,band,offset){
+  const step=Math.max(1,Math.ceil(x.length/6));
+  x.forEach((v,i)=>{if(i%step===0||i===x.length-1)g.appendChild(svgText(offset+i*band+band/2,H+12,shortX(v),'middle'))});
+}
+
+function statsBlock(b){
+  const items=(Array.isArray(b.items)?b.items:[]).slice(0,6).filter(i=>i&&i.label!=null&&i.value!=null);
+  if(!items.length)return null;
+  const g=el('div','stats');
+  items.forEach(i=>{const c=el('div','stat');c.appendChild(el('span','l',txt(i.label,40)));c.appendChild(el('b','v',txt(i.value,30)));g.appendChild(c)});
+  return g;
+}
+function donutBlock(b){
+  const M=fmtOf(b);
+  const data=(Array.isArray(b.data)?b.data:[]).slice(0,4).filter(d=>d&&isNum(d.value)&&d.value>0);
+  const total=data.reduce((s,d)=>s+d.value,0);
+  if(!data.length||!total)return null;
+  const f=frame(b.title,(b.title||'Chart')+': '+data.map(d=>txt(d.label,30)+' '+M(d.value)).join(', '));
+  const wrap=el('div','dn');
+  const s=svg('svg',{viewBox:'0 0 120 120',role:'img','aria-hidden':'true'});
+  const r=42,c=2*Math.PI*r;let off=0;
+  data.forEach((d,i)=>{const len=d.value/total*c;
+    const ring=svg('circle',{cx:60,cy:60,r:r,fill:'none','stroke-width':20,'stroke-dasharray':len+' '+(c-len),'stroke-dashoffset':-off,transform:'rotate(-90 60 60)'});
+    ring.style.stroke=COLORS[i];s.appendChild(ring);off+=len});
+  s.appendChild(svgText(60,57,'Total','middle'));
+  const t=svgText(60,71,M(total),'middle');t.setAttribute('class','ax big');s.appendChild(t);
+  wrap.appendChild(s);
+  wrap.appendChild(legend(data.map((d,i)=>({color:COLORS[i],text:txt(d.label,30)+': '+M(d.value)+' ('+Math.round(d.value/total*100)+'%)'}))));
+  f.appendChild(wrap);return f;
+}
+function barBlock(b){
+  const M=fmtOf(b);
+  const data=(Array.isArray(b.data)?b.data:[]).slice(0,8).filter(d=>d&&isNum(d.value));
+  if(!data.length)return null;
+  const max=Math.max(...data.map(d=>Math.abs(d.value)),1);
+  const f=frame(b.title,(b.title||'Chart')+': '+data.map(d=>txt(d.label,30)+' '+M(d.value)).join(', '));
+  data.forEach((d,i)=>{const row=el('div','hb');row.appendChild(el('span',null,txt(d.label,24)));
+    const t=el('span','t');const bar=el('b');bar.style.width=Math.max(2,Math.abs(d.value)/max*100)+'%';bar.style.background=COLORS[i%4];t.appendChild(bar);row.appendChild(t);
+    row.appendChild(el('span',null,M(d.value)));f.appendChild(row)});
+  return f;
+}
+function stackedBlock(b){
+  const M=fmtOf(b);
+  const d=cleanSeries(b);if(!d)return null;
+  const n=d.x.length,W=300,H=130,band=W/n,bw=Math.max(2,band*.7);
+  const totals=d.x.map((_,i)=>d.series.reduce((s,se)=>s+Math.max(0,se.values[i]||0),0)),max=Math.max(...totals,1);
+  const f=frame(b.title,(b.title||'Chart')+' ('+d.series.map(s=>s.name).join(' and ')+' by '+(d.x[0]||'')+' to '+d.x[n-1]+')');
+  const s=svg('svg',{viewBox:'0 0 '+W+' '+(H+18),role:'img','aria-hidden':'true'});
+  s.appendChild(svgText(0,8,M(max),'start'));
+  d.x.forEach((_,i)=>{let y=H;d.series.forEach((se,k)=>{const h=Math.max(0,se.values[i]||0)/max*(H-12);y-=h;
+    const r=svg('rect',{x:i*band+(band-bw)/2,y:y,width:bw,height:Math.max(0,h),rx:1});r.style.fill=COLORS[k];s.appendChild(r)})});
+  s.appendChild(svg('line',{x1:0,x2:W,y1:H,y2:H,stroke:'currentColor','stroke-opacity':.25}));
+  xLabels(s,d.x,W,H,band,0);
+  f.appendChild(s);f.appendChild(legend(d.series.map((se,k)=>({color:COLORS[k],text:se.name}))));return f;
+}
+function lineBlock(b,area){
+  const M=fmtOf(b);
+  const d=cleanSeries(b);if(!d)return null;
+  const n=d.x.length,W=300,H=120,all=d.series.flatMap(s=>s.values),max=Math.max(...all,1),min=Math.min(0,...all);
+  const px=i=>n===1?W/2:i/(n-1)*W,py=v=>(H-8)-(v-min)/((max-min)||1)*(H-20);
+  const f=frame(b.title,(b.title||'Chart')+': '+d.series.map(s=>s.name+' reaches '+M(s.values[s.values.length-1])).join(', '));
+  const s=svg('svg',{viewBox:'0 0 '+W+' '+(H+14),role:'img','aria-hidden':'true'});
+  s.appendChild(svgText(0,8,M(max),'start'));
+  s.appendChild(svg('line',{x1:0,x2:W,y1:H-8,y2:H-8,stroke:'currentColor','stroke-opacity':.25}));
+  d.series.forEach((se,k)=>{
+    const pts=se.values.map((v,i)=>px(i).toFixed(1)+','+py(v).toFixed(1));
+    if(area&&k===0){const p=svg('polygon',{points:pts.join(' ')+' '+px(n-1).toFixed(1)+','+(H-8)+' '+px(0).toFixed(1)+','+(H-8)});p.style.fill=COLORS[k];p.setAttribute('fill-opacity','.15');s.appendChild(p)}
+    const l=svg('polyline',{points:pts.join(' '),fill:'none','stroke-width':2.2,'stroke-linejoin':'round','stroke-linecap':'round'});l.style.stroke=COLORS[k];s.appendChild(l);
+  });
+  const step=Math.max(1,Math.ceil(n/6));
+  d.x.forEach((v,i)=>{if(i%step===0||i===n-1)s.appendChild(svgText(px(i),H+6,shortX(v),i===0?'start':i===n-1?'end':'middle'))});
+  f.appendChild(s);
+  f.appendChild(legend(d.series.map((se,k)=>({color:COLORS[k],text:se.name+': '+M(se.values[se.values.length-1])}))));return f;
+}
+function tableBlock(b){
+  const cols=(Array.isArray(b.columns)?b.columns:[]).slice(0,6).map(c=>txt(c,24));
+  const rows=(Array.isArray(b.rows)?b.rows:[]).slice(0,200).map(r=>Array.isArray(r)?r.slice(0,cols.length).map(c=>txt(c,30)):null).filter(Boolean);
+  if(!cols.length||!rows.length)return null;
+  const d=el('details','tbl blk');if(!b.collapsed)d.open=true;
+  d.appendChild(el('summary',null,(b.collapsed?'Show table: ':'')+txt(b.title||'Table',60)));
+  const w=el('div','tw2'),t=document.createElement('table'),hd=document.createElement('tr');
+  cols.forEach(c=>hd.appendChild(el('th',null,c)));t.appendChild(hd);
+  rows.forEach(r=>{const tr=document.createElement('tr');r.forEach(c=>tr.appendChild(el('td',null,c)));t.appendChild(tr)});
+  w.appendChild(t);d.appendChild(w);return d;
+}
+function renderBlocks(blocks){
+  if(!Array.isArray(blocks)||!blocks.length)return null;
+  const box=el('div','blks');
+  blocks.slice(0,6).forEach(b=>{
+    if(!b||typeof b!=='object')return;
+    let node=null;
+    try{
+      if(b.type==='stats')node=statsBlock(b);
+      else if(b.type==='table')node=tableBlock(b);
+      else if(b.type==='chart'){
+        if(b.kind==='donut'||b.kind==='pie')node=donutBlock(b);
+        else if(b.kind==='bar')node=barBlock(b);
+        else if(b.kind==='stacked')node=stackedBlock(b);
+        else if(b.kind==='line')node=lineBlock(b,false);
+        else if(b.kind==='area')node=lineBlock(b,true);
+      }
+    }catch(_){node=null}
+    if(node)box.appendChild(node);
+  });
+  return box.children.length?box:null;
+}
+
+/* System 2 (rich charts) lives on the calculator project. Load it lazily; if anything fails the built-in blocks above stay. */
+let vizP=null;
+function loadViz(base){
+  if(window.RupeyantraViz)return Promise.resolve(window.RupeyantraViz);
+  if(vizP)return vizP;
+  vizP=new Promise((ok,no)=>{const sc=document.createElement('script');sc.src=base+'viz.js';sc.async=true;const t=setTimeout(()=>no(new Error('slow')),5000);sc.onload=()=>{clearTimeout(t);window.RupeyantraViz?ok(window.RupeyantraViz):no(new Error('none'))};sc.onerror=()=>{clearTimeout(t);no(new Error('load'))};document.head.appendChild(sc)}).catch(e=>{vizP=null;throw e});
+  return vizP;
+}
+function upgradeViz(bot,old,blocks,base){
+  if(typeof base!=='string'||!/^https:\/\/[^\s]+\/system2\/$/.test(base))return;
+  loadViz(base).then(V=>V.ready(blocks,base).then(()=>{
+    if(!bot.isConnected)return;
+    const box=el('div','blks');let n=0;
+    blocks.slice(0,6).forEach(b=>{const node=V.render(b,{lang:'en',export:true});if(node){box.appendChild(node);n++}});
+    if(!n)return;
+    if(old&&old.parentNode===bot)bot.replaceChild(box,old);else bot.appendChild(box);
+    bot._viz={V,base,blocks};
+  })).catch(()=>{});
+}
+
+
+/* "Try different numbers": drag a slider, the SAME calculator runs again on the server (same checks) and the answer + charts update. */
+function fmtSl(s,v){v=Number(v);return s.unit==='₹'?'₹'+v.toLocaleString('en-IN'):s.unit==='%'?v+'%':v+(s.unit||'')}
+function mountSliders(bot,extra){
+  const S=extra.sliders.filter(s=>s&&typeof s.key==='string'&&[s.min,s.max,s.step,s.value].every(isFinite)&&s.max>s.min&&s.step>0).slice(0,3);
+  if(!S.length)return;
+  const box=document.createElement('details');box.className='wi';box.open=true;
+  const sm=document.createElement('summary');sm.textContent='Try different numbers';box.appendChild(sm);
+  const status=document.createElement('div');status.className='wis';status.setAttribute('aria-live','polite');
+  const ins={};let timer=null,seq=0,state=extra.state;
+  S.forEach(s=>{
+    const row=document.createElement('label');row.className='wir';
+    const name=document.createElement('span');name.className='win';name.textContent=String(s.label||s.key).replace(/\s*\(.*?\)\s*$/,'').replace(/^the\s+/i,'').replace(/^./,c=>c.toUpperCase());
+    const val=document.createElement('b');val.textContent=fmtSl(s,s.value);
+    const r=document.createElement('input');r.type='range';r.min=s.min;r.max=s.max;r.step=s.step;r.value=s.value;r.setAttribute('aria-label',name.textContent);
+    r.addEventListener('input',()=>{val.textContent=fmtSl(s,r.value);status.textContent='';clearTimeout(timer);timer=setTimeout(fire,350)});
+    const top=document.createElement('div');top.className='wit';top.appendChild(name);top.appendChild(val);row.appendChild(top);row.appendChild(r);box.appendChild(row);ins[s.key]=r;
+  });
+  box.appendChild(status);bot.appendChild(box);
+  async function fire(){
+    const my=++seq,w={};S.forEach(s=>{w[s.key]=Number(ins[s.key].value)});
+    status.textContent='Updating…';
+    try{
+      const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:[{role:'user',content:'what if'}],state,whatif:w}),signal:AbortSignal.timeout(15000)});
+      const d=await r.json();
+      if(my!==seq||!bot.isConnected)return;
+      if(!r.ok||!d||typeof d.reply!=='string'||!d.reply||d.whatifFailed){status.textContent='Could not update right now. Please try again.';return}
+      if(!d.state||!Array.isArray(d.blocks)){status.textContent=d.reply.slice(0,200);return}   // blocked or switched off: show why, keep old picture
+      state=d.state;calcState=d.state;status.textContent='';
+      const span=bot.firstChild;if(span&&span.tagName==='SPAN'){renderRich(span,d.reply);bot._text=d.reply}
+      bot._am=Array.isArray(d.assumptions)?d.assumptions.filter(x=>typeof x==='string'):[];
+      const old=bot.querySelector('.blks'),nb=renderBlocks(d.blocks);
+      if(nb){if(old)bot.replaceChild(nb,old);else bot.insertBefore(nb,box);if(typeof d.viz==='string')upgradeViz(bot,nb,d.blocks,d.viz)}
+      let v=bot.querySelector('.vf');if(d.verified===true&&!v){v=document.createElement('div');v.className='vf';v.textContent='✓ Verified by calculator';bot.insertBefore(v,box)}else if(d.verified!==true&&v)v.remove();
+      const am=bot.querySelector('details.am');if(am){const ul=am.querySelector('ul');if(ul){ul.replaceChildren();bot._am.slice(0,8).forEach(x=>{const li=document.createElement('li');li.textContent=x.slice(0,300);ul.appendChild(li)})}}
+      if(bot===lastBot&&convo.length&&convo[convo.length-1].role==='assistant')convo[convo.length-1].content=d.reply;
+    }catch(_){if(my===seq)status.textContent='Could not update right now. Please try again.'}
+  }
+}
+
 /* messages UI */
 function add(role,text){const d=document.createElement('div');d.className='msg '+role;d.textContent=text;msgs.appendChild(d);down();return d}
 function addUser(text,atts){
@@ -143,7 +330,8 @@ function botMsg(bot,text,animate,extra){
   const tools=document.createElement('div');tools.className='tools';
   const finish=()=>{
     if(!bot.isConnected)return;
-    renderRich(span,text);
+    renderRich(span,text);bot._text=text;bot._am=extra&&Array.isArray(extra.assumptions)?extra.assumptions.filter(x=>typeof x==='string'):[];
+    if(extra&&extra.blocks){const bl=renderBlocks(extra.blocks);if(bl)bot.appendChild(bl);if(extra.viz)upgradeViz(bot,bl,extra.blocks,extra.viz)}
     mk(tools,'Copy',b=>copyText(text,b));
     if(canSpeak())mk(tools,'🔊 Listen',b=>speak(text,b));
     if(bot===lastBot)mk(tools,'🔄 Regenerate',()=>regen(bot));
@@ -155,13 +343,27 @@ function botMsg(bot,text,animate,extra){
       mk(tools,'Word',()=>dl('rupeyantra.doc','application/msword',wrap(span.innerHTML)));
       mk(tools,'TXT',()=>dl('rupeyantra.txt','text/plain;charset=utf-8',text));
     }
-    mk(tools,'PDF',()=>printEl(bot));
-    mk(tools,'Share',b=>{const body=text+'\n\n- Rupeyantra AI (https://rupyantra-psi.vercel.app/ai.html)';if(navigator.share)navigator.share({text:body}).catch(()=>{});else copyText(body,b)});
+    mk(tools,'PDF',b=>{
+      const z=bot._viz;
+      if(!(z&&z.V&&z.V.exportPdf))return printEl(bot);
+      const old=b.textContent;b.textContent='…';
+      const nodes=Array.from(bot.querySelectorAll('.blks > *'));
+      z.V.exportPdf({title:'Rupeyantra answer',text:bot._text||text,assumptions:bot._am||[],nodes}).then(blob=>z.V.saveBlob(blob,'rupeyantra-answer.pdf')).catch(()=>printEl(bot)).then(()=>{b.textContent=old});
+    });
+    mk(tools,'Share',b=>{
+      const z=bot._viz,body=(bot._text||text)+'\n\n- Rupeyantra AI (https://rupyantra-psi.vercel.app/ai.html)';
+      if(z&&z.V&&z.V.shareLink&&z.blocks&&z.blocks.length){
+        z.V.shareLink({title:'Rupeyantra answer',reply:bot._text||text,blocks:z.blocks,base:z.base}).then(url=>{if(navigator.share)navigator.share({title:'Rupeyantra answer',url}).catch(()=>{});else copyText(url,b)}).catch(()=>{if(navigator.share)navigator.share({text:body}).catch(()=>{});else copyText(body,b)});
+        return;
+      }
+      if(navigator.share)navigator.share({text:body}).catch(()=>{});else copyText(body,b)
+    });
     const up=mk(tools,'👍',()=>{const o=up.getAttribute('aria-pressed')!=='true';up.setAttribute('aria-pressed',String(o));dn.setAttribute('aria-pressed','false');if(o)warn('Thanks for the feedback.')});
     const dn=mk(tools,'👎',()=>{const o=dn.getAttribute('aria-pressed')!=='true';dn.setAttribute('aria-pressed',String(o));up.setAttribute('aria-pressed','false');if(o)warn('Thanks for the feedback. Please check important figures yourself.')});
     up.setAttribute('aria-label','Good answer');dn.setAttribute('aria-label','Poor answer');up.setAttribute('aria-pressed','false');dn.setAttribute('aria-pressed','false');
     if(extra&&extra.verified){const v=document.createElement('div');v.className='vf';v.textContent='✓ Verified by calculator';bot.appendChild(v)}
     if(extra&&Array.isArray(extra.assumptions)){const al=extra.assumptions.filter(x=>typeof x==='string'&&x).slice(0,8);if(al.length){const dt=document.createElement('details');dt.className='am';const sm=document.createElement('summary');sm.textContent='How this was calculated';dt.appendChild(sm);const ul=document.createElement('ul');al.forEach(x=>{const li=document.createElement('li');li.textContent=x.slice(0,300);ul.appendChild(li)});dt.appendChild(ul);bot.appendChild(dt)}}
+    if(extra&&Array.isArray(extra.sliders)&&extra.state&&extra.blocks)mountSliders(bot,extra);
     bot.appendChild(tools);
     if(extra&&Array.isArray(extra.options)&&extra.options.length){
       const o=document.createElement('div');o.className='opts';
@@ -357,6 +559,7 @@ function friendly(status){
   if(status>=500)return 'The assistant is busy or restarting. Please try again in about 30 seconds.';
   return 'No response right now. Please try again.';
 }
+let calcState=null;
 async function send(){
   const my=++gen;
   stopped=false;
@@ -367,7 +570,7 @@ async function send(){
   try{
     const last=convo.length-1;
     const payload=convo.map((m,i)=>{const o={role:m.role,content:m.content};if(i===last&&m.attachments)o.attachments=m.attachments;return o});
-    const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','Accept':'text/event-stream, application/json;q=0.9'},body:JSON.stringify(SID?{messages:payload,sessionId:SID}:{messages:payload}),signal:controller.signal});
+    const r=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json','Accept':'text/event-stream, application/json;q=0.9'},body:JSON.stringify(Object.assign(SID?{messages:payload,sessionId:SID}:{messages:payload},calcState?{state:calcState}:{})),signal:controller.signal});
     let reply='',streamed=false;
     if(r.ok&&r.body&&(r.headers.get('content-type')||'').includes('text/event-stream')){
       streamed=true;
@@ -389,7 +592,8 @@ async function send(){
     log.push({role:'bot',text:reply});
     
     lastBot=bot;
-    botMsg(bot,reply,!streamed,{verified:serverData.verified===true,options:serverData.options,assumptions:serverData.assumptions});
+    calcState=serverData&&serverData.state&&typeof serverData.state==='object'?serverData.state:null;
+    botMsg(bot,reply,!streamed,{verified:serverData.verified===true,sliders:serverData.sliders,state:serverData.state,options:serverData.options,assumptions:serverData.assumptions,blocks:serverData.blocks,viz:serverData.viz});
     if(voiceOn)vSpeak(reply);
   }catch(e){
     if(stopped||my!==gen)return;
